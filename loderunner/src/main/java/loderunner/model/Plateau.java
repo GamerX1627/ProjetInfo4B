@@ -121,6 +121,6 @@ public class Plateau {
                 return false;
             }
         }
-        return true;
+        return true; 
     }
 }

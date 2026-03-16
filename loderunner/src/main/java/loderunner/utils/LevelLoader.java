@@ -39,7 +39,7 @@ public class LevelLoader {
                             P.setCase(i, j, Case.SORTIE);break;
                         }
                         case 'O':{ // on se sert du O pour indiquer un trou
-                            P.setCase(i, j, Case.TROU);
+                            P.setCase(i, j, Case.TROU);break;
                         }
                     }
                 }

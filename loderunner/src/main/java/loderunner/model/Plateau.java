@@ -98,7 +98,10 @@ public class Plateau {
             garde.reset();
         }
     }
-
+    //à modifier plus tard
+    public boolean tousLesLingotsRecoltes(){
+        return true;
+    }
     // Ici, on vérifie si une position est libre, c'est à dire qu'elle n'est pas un
     // mur et qu'elle n'est pas occupée par un joueur ou un garde. à noter que on
     // pourra plus tard ajouter d'autres éléments comme les paquets et les lingots,

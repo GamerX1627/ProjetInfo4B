@@ -1,5 +1,7 @@
 package loderunner.model;
 
+import loderunner.utils.Direction;
+
 // Classe qui représente une entité dans le jeu, comme un joueur, un ennemi, ou un objet.
 public abstract class Entite {
     protected int x; // Position horizontale de l'entité
@@ -7,14 +9,20 @@ public abstract class Entite {
     protected int x_Initiale; // Position horizontale initiale de l'entité pour pouvoir la réinitialiser
     protected int y_Initiale; // Position verticale initiale de l'entité pour pouvoir la réinitialiser
     protected Plateau plateau; // Référence au plateau de jeu
-
+    private Direction directionActuelle;
     public Entite(int x, int y, Plateau plateau) {
         this.setPosition(x, y);
         this.x_Initiale = x;
         this.y_Initiale = y;
         this.plateau = plateau;
+        this.directionActuelle=Direction.AUCUNE;
     }
-
+    public Direction getDirection(){
+        return this.directionActuelle;
+    }
+    public void setDirection(Direction d){
+        this.directionActuelle=d;
+    }
     public int getX() {
         return x;
     }

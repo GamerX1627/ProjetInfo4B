@@ -49,6 +49,6 @@ public class Joueur extends Entite {
     public void reset() {
         super.reset(); // Réinitialiser la position du joueur
         this.score = 0; // Réinitialiser le score
-        this.vies = 5; // Réinitialiser les vies
+        this.perdreVie();
     }
 }

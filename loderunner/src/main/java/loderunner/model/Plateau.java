@@ -17,6 +17,12 @@ public class Plateau {
         this.gardes = new ArrayList<Garde>();
         this.cases = new Case[largeur][hauteur];
     }
+    public int getLargeur(){
+        return this.largeur;
+    }
+    public int gethauteur(){
+        return this.hauteur;
+    }
 
     public boolean estPositionValide(int x, int y) {
         return estdansLePlateau(x, y) && estMarchable(x, y);

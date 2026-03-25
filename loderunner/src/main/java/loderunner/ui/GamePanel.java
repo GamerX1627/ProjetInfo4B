@@ -14,6 +14,7 @@ import loderunner.model.*;
  */
 public class GamePanel extends JPanel {
     private Plateau plateau;
+    private static final int TILE_SIZE=32;
     /**
      * Creates new form GamePanel
      */
@@ -41,8 +42,42 @@ public class GamePanel extends JPanel {
             .addGap(0, 300, Short.MAX_VALUE)
         );
     }// </editor-fold>//GEN-END:initComponents
-
-
+    @Override
+    public void paintComponents(Graphics g){
+        super.paintComponent(g);
+        dessinerPlateau(g);
+        dessinerItems(g);
+        dessinerEntites(g);
+        dessinerInterface(g);
+    }
     // Variables declaration - do not modify//GEN-BEGIN:variables
     // End of variables declaration//GEN-END:variables
+
+    private void dessinerPlateau(Graphics g) {
+        for(int x=0; x<this.plateau.gethauteur(); x++){
+            for(int y=0; y<this.plateau.getLargeur(); y++){
+                Case type=plateau.getCase(x, y);
+                int posX=x*TILE_SIZE;
+                int posY=y*TILE_SIZE;
+                switch (type) {
+                    case MUR:
+                        
+                        break;
+                
+                    default:
+                        break;
+                }
+            }
+        }
+    }
+
+    private void dessinerItems(Graphics g) {
+    }
+
+    private void dessinerEntites(Graphics g) {
+    }
+
+    private void dessinerInterface(Graphics g) {
+
+    }
 }

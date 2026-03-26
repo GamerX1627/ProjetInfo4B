@@ -10,7 +10,7 @@ import loderunner.model.Plateau;
 public class LevelLoader {
     public static Plateau loadMap(String cheminFichier) { // méthode qui permet de charger le plateau à partir d'un
                                                           // fichier texte.
-        Plateau P=null;
+        Plateau P = null;
         try (BufferedReader br = new BufferedReader(new FileReader(cheminFichier))) {
             String ligne;
             ligne = br.readLine();
@@ -21,8 +21,13 @@ public class LevelLoader {
             P.initPlateau();
             for (int j = 0; j < hauteur; j++) {
                 ligne = br.readLine();
+                if (ligne == null)
+                    ligne = "";
+                while (ligne.length() < largeur) {
+                    ligne += " ";
+                }
                 for (int i = 0; i < largeur; i++) {
-                    switch (ligne.charAt(j)) {
+                    switch (ligne.charAt(i)) {
                         case '#': { // ici, on se sert du # dans le fichier texte pour indiquer au LevelLoader que
                                     // c'est un mur
                             P.setCase(i, j, Case.MUR);

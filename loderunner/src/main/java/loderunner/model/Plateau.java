@@ -20,7 +20,7 @@ public class Plateau {
     public int getLargeur(){
         return this.largeur;
     }
-    public int gethauteur(){
+    public int getHauteur(){
         return this.hauteur;
     }
 

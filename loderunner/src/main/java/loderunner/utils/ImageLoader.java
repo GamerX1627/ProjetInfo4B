@@ -11,12 +11,6 @@ public class ImageLoader {
     // ici on stocke les images déjà chargées en mémoire
     private static Map<String, BufferedImage> cacheImages = new HashMap<>();
 
-    /**
-     * Charge une image depuis le disque ou la récupère dans le cache
-     * 
-     * @param nomFichier le nom de l'image (ex: "mur.png")
-     * @return l'image chargée ou une image de secours en cas d'erreur
-     */
     public static BufferedImage getImage(String nomFichier) {
         // On vérifie si l'image est déjà chargée en mémoir
         if (cacheImages.containsKey(nomFichier)) {
@@ -25,7 +19,7 @@ public class ImageLoader {
 
         // Si non, on tente de la charger depuis le dossier "assets"
         try {
-            BufferedImage img = ImageIO.read(new File("ressources/images/" + nomFichier));
+            BufferedImage img = ImageIO.read(new File("loderunner/src/main/ressources/images/" + nomFichier));
             cacheImages.put(nomFichier, img); // On garde l'image pour éviter qu'elle soit encore chargée à chaque
                                               // niveau
             return img;

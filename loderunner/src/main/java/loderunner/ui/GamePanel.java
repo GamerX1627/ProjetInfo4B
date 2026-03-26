@@ -6,6 +6,8 @@ package loderunner.ui;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.ArrayList;
+
 import loderunner.utils.*;
 import loderunner.model.*;
 
@@ -13,16 +15,16 @@ import loderunner.model.*;
  *
  * @author Mohamed Kazaliou Bah
  */
+// une partie de cette classe a été déclarée sur netbeans
 public class GamePanel extends JPanel {
     private Plateau plateau;
     private static final int TILE_SIZE = 32;
+    private long tick_moteur = 0; // variable qui sera modifiable que par le moteur pour aider avec l'animation
+                                  // des entites
 
     /**
      * Creates new form GamePanel
      */
-    public GamePanel() {
-        initComponents();
-    }
 
     /**
      * This method is called from within the constructor to initialize the form.
@@ -45,25 +47,63 @@ public class GamePanel extends JPanel {
     }// </editor-fold>//GEN-END:initComponents
 
     @Override
-    public void paintComponents(Graphics g) {
+    protected void paintComponent(Graphics g0) {
+        Graphics2D g = (Graphics2D) g0;
         super.paintComponent(g);
+        double scaleX = (double) getWidth() / (plateau.getLargeur() * TILE_SIZE);
+        double scaleY = (double) getHeight() / (plateau.getHauteur() * TILE_SIZE);
+
+        // On choisit le plus petit des deux pour garder les proportions
+        double scale = Math.min(scaleX, scaleY);
+
+        g.scale(scale, scale);
         dessinerPlateau(g);
         dessinerEntites(g);
         dessinerInterface(g);
     }
-    // Variables declaration - do not modify//GEN-BEGIN:variables
-    // End of variables declaration//GEN-END:variables
+
+    public GamePanel(Plateau p) {
+        this.plateau = p;
+        initComponents();
+        // 1. Calcul de la taille basée sur le modèle (Largeur x Hauteur du plateau)
+        int largeurPx = plateau.getLargeur() * TILE_SIZE;
+        int hauteurPx = plateau.getHauteur() * TILE_SIZE;
+        Dimension dimensionJeu = new Dimension(largeurPx, hauteurPx);
+
+        // 2. Configuration de la fenêtre (Fixe et précise)
+        this.setPreferredSize(dimensionJeu);
+        this.setMinimumSize(dimensionJeu);
+        this.setMaximumSize(dimensionJeu);
+
+        // 3. Optimisations graphiques
+        this.setBackground(new Color(173, 216, 230)); // Le bleu ciel par défaut
+        this.setDoubleBuffered(true); // Élimine les scintillements
+
+        // 4. Préparation des entrées (Clavier)
+        this.setFocusable(true);
+        this.requestFocusInWindow();
+
+    }
+
+    public void incrementerTick() {
+        this.tick_moteur++;
+    }
+
+    public long getTick() {
+        return this.tick_moteur;
+    }
 
     private void dessinerPlateau(Graphics g) {
-        Color Background=new Color(173, 216, 230);
-        for (int y = 0; y < this.plateau.gethauteur(); y++) {
+        Color Background = new Color(173, 216, 230);
+        for (int y = 0; y < this.plateau.getHauteur(); y++) {
             for (int x = 0; x < this.plateau.getLargeur(); x++) {
                 Case type = plateau.getCase(x, y);
                 int posX = x * TILE_SIZE;
                 int posY = y * TILE_SIZE;
                 switch (type) {
                     case MUR:
-                        g.drawImage(ImageLoader.getImage("Environnement/mur.png"), posX, posY, TILE_SIZE, TILE_SIZE,
+                        g.drawImage(ImageLoader.getImage("Environnement/mur.png"), posX, posY,
+                                TILE_SIZE, TILE_SIZE,
                                 null);
                         break;
 
@@ -86,7 +126,8 @@ public class GamePanel extends JPanel {
                     case PASSERELLE:
                         g.setColor(Background);
                         g.fillRect(posX, posY, TILE_SIZE, TILE_SIZE);
-                        g.drawImage(ImageLoader.getImage("Environnement/passerelle.png"), posX, posY, TILE_SIZE, TILE_SIZE,
+                        g.drawImage(ImageLoader.getImage("Environnement/passerelle.png"), posX, posY, TILE_SIZE,
+                                TILE_SIZE,
                                 null);
                         break;
                     default:
@@ -99,6 +140,29 @@ public class GamePanel extends JPanel {
     }
 
     private void dessinerEntites(Graphics g) {
+        ArrayList<Joueur> joueurs = plateau.getJoueurs();
+        ArrayList<Garde> gardes = plateau.getGardes();
+        for (int i = 0; i < joueurs.size(); i++) {
+            // appel à la methode animate qui permet de dessiner en fonction du tik moteur
+            // et de la direction de l'entite pour afficher la bonne imgae
+            animate(joueurs.get(i), g);
+        }
+        for (int j = 0; j < gardes.size(); j++) {
+            animate(gardes.get(j), g);
+        }
+    }
+
+    // méthode qui anime les entites
+    private void animate(Entite e, Graphics g) {
+        long tick = this.getTick();
+        Direction dir = e.getDirection();
+
+        // Si immobile, on force la frame 0, sinon on calcule selon le tick
+        int frame = (dir == Direction.AUCUNE) ? 0 : (int) (tick / 8) % 2;
+
+        String imgPath = "Joueur/" + dir + "_" + frame + ".png";
+        g.drawImage(ImageLoader.getImage(imgPath), e.getX() * TILE_SIZE, e.getY() * TILE_SIZE, null);
+
     }
 
     private void dessinerInterface(Graphics g) {

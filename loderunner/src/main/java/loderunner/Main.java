@@ -16,8 +16,6 @@ public class Main {
 
         JFrame frame = new JFrame("Lode Runner");
         frame.add(ui);
-
-       
         frame.pack();
 
         frame.setLocationRelativeTo(null); // Centre la fenêtre

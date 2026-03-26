@@ -3,6 +3,8 @@ package loderunner.game;
 
 import loderunner.model.Case;
 import loderunner.model.Entite;
+import loderunner.model.Garde;
+import loderunner.model.Joueur;
 import loderunner.model.Plateau;
 import loderunner.utils.Direction;
 
@@ -88,6 +90,10 @@ public class Physique {
             return false;
         }
 
+        if (caseActuelle == Case.TROU && e instanceof Garde) {
+            return false;
+        }
+
         int ySousEntite = y + 1;
 
         if (!this.plateau.estdansLePlateau(x, ySousEntite)) {
@@ -96,10 +102,22 @@ public class Physique {
 
         Case caseEnDessous = this.plateau.getCase(x, ySousEntite);
 
-        if (caseEnDessous == Case.MUR || caseEnDessous == Case.ECHELLE) {
+        if (caseEnDessous == Case.MUR || caseEnDessous == Case.ECHELLE || caseEnDessous == Case.PASSERELLE) {
             return false;
         }
 
         return true;
     }
+    //on ne peut pas creuser dans les bords de la map
+    public boolean peutCreuser(int xCible, int yCible) {
+    if (xCible <= 0 || xCible >= plateau.getLargeur() - 1) {
+        return false;
+    }
+    if (yCible <= 0 || yCible >= plateau.getHauteur() - 1) {
+        return false;
+    }
+
+    Case cible = plateau.getCase(xCible, yCible);
+    return (cible == Case.MUR);
+}
 }

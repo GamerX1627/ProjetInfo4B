@@ -18,7 +18,7 @@ public class Regenerateur {
     // Appelé par le Moteur quand le joueur creuse
     public void ajouterTrou(int x, int y) {
         trous.add(new TrouEnAttente(x, y, TEMPS_REBOUCHAGE));
-        plateau.setCase(x, y, Case.VIDE); // On crée le trou physiquement
+        plateau.setCase(x, y, Case.TROU); // On crée le trou physiquement
     }
 
     // Appelé à chaque "tick" par le Moteur

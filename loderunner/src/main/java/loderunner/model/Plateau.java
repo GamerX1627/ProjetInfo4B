@@ -62,7 +62,12 @@ public class Plateau {
     public ArrayList<Garde> getGardes() {
         return gardes;
     }
-
+    public ArrayList<Entite> getEntites(){
+        ArrayList<Entite> s=new ArrayList<>();
+        s.addAll(this.joueurs);
+        s.addAll(this.gardes);
+        return s;
+    }
     public Entite getEntiteAt(int x, int y) {
         for (Joueur joueur : joueurs) {
             if (joueur.getX() == x && joueur.getY() == y) {
@@ -104,8 +109,14 @@ public class Plateau {
             garde.reset();
         }
     }
-    //à modifier plus tard
     public boolean tousLesLingotsRecoltes(){
+        for (int x = 0; x < largeur; x++) {
+            for (int y = 0; y < hauteur; y++) {
+                if (cases[x][y] == Case.LINGOT) {
+                    return false;
+                }
+            }
+        }
         return true;
     }
     // Ici, on vérifie si une position est libre, c'est à dire qu'elle n'est pas un

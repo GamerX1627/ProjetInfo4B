@@ -57,6 +57,10 @@ public class LevelLoader {
                             P.setCase(i, j, Case.TROU);
                             break;
                         }
+                        case 'P': { // on se sert du P pour indiquer la position de départ du joueur
+                            P.ajouterJoueur(new loderunner.model.Joueur(i, j, P));
+                            break;
+                        }
                     }
                 }
             }

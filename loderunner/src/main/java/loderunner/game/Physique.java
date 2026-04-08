@@ -86,7 +86,7 @@ public class Physique {
 
         Case caseActuelle = this.plateau.getCase(x, y);
 
-        if (caseActuelle == Case.ECHELLE) {
+        if (caseActuelle == Case.ECHELLE || caseActuelle == Case.PASSERELLE) {
             return false;
         }
 
@@ -102,7 +102,7 @@ public class Physique {
 
         Case caseEnDessous = this.plateau.getCase(x, ySousEntite);
 
-        if (caseEnDessous == Case.MUR || caseEnDessous == Case.ECHELLE || caseEnDessous == Case.PASSERELLE) {
+        if (caseEnDessous == Case.MUR || caseEnDessous == Case.ECHELLE) {
             return false;
         }
 

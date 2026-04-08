@@ -35,13 +35,24 @@ public abstract class Entite {
         this.x = x;
         this.y = y;
     }
-
+    public void deplacer(Direction d){
+        switch (d) {
+            case HAUT:   deplacer(0, -1); break;
+            case BAS:    deplacer(0,  1); break;
+            case GAUCHE: deplacer(-1, 0); break;
+            case DROITE: deplacer(1,  0); break;
+            default: break;
+        }
+    }
     public void deplacer(int dx, int dy) {
         int newX = this.x + dx;
         int newY = this.y + dy;
         if (plateau.estPositionValide(newX, newY)) {
             this.setPosition(newX, newY);
         }
+    }
+    public void tomber(){
+        this.deplacer(0, 1);
     }
 
     public void reset() {

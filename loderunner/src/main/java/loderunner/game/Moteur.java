@@ -10,9 +10,12 @@ public class Moteur implements Runnable {
     private Physique physique;
     private Regenerateur regenerateur;
     private InputHandler inputHandler;
+    private IA ia;
     private boolean encours;
     private int compteurMouvement = 0;
-    private static final int DELAI_MOUVEMENT = 2; // 1 déplacement toutes les 2 frames
+    private int compteurMouvementGardes = 0;
+    private static final int DELAI_MOUVEMENT        = 3;  // le joueur bouge toutes les 3 frames
+    private static final int DELAI_MOUVEMENT_GARDES = 6;  // les gardes bougent toutes les 6 frames (plus lents)
 
     public Moteur(Plateau plateau, GamePanel panel, InputHandler inputHandler) {
         this.plateau = plateau;
@@ -20,18 +23,22 @@ public class Moteur implements Runnable {
         this.inputHandler = inputHandler;
         this.physique = new Physique(plateau);
         this.regenerateur = new Regenerateur(plateau);
+        this.ia = new IA(plateau);
         this.encours = false;
     }
 
-    // Appelée à chaque frame : gravité, déplacement joueur, collecte lingots
     public void update() {
+        if (!encours) return;
+
         panel.incrementerTick();
         regenerateur.mettreAJour();
+
+        compteurMouvement++;
+        compteurMouvementGardes++;
 
         Direction directionJoueur = inputHandler.getDirection();
 
         for (Entite e : plateau.getEntites()) {
-            // Gravité : toutes les entités tombent si rien sous leurs pieds
             boolean enChute = physique.doitTomber(e);
             if (enChute) {
                 e.tomber();
@@ -40,36 +47,80 @@ public class Moteur implements Runnable {
             if (e instanceof Joueur) {
                 Joueur j = (Joueur) e;
                 j.setDirection(directionJoueur);
-                // En chute, on autorise quand même les déplacements latéraux
+                // même en tombant le joueur peut se déplacer à gauche/droite
                 boolean directionLaterale = directionJoueur == Direction.GAUCHE || directionJoueur == Direction.DROITE;
                 if (!enChute || directionLaterale) {
-                    compteurMouvement++;
                     if (compteurMouvement >= DELAI_MOUVEMENT && directionJoueur != Direction.AUCUNE && physique.peutSeDeplacer(j, directionJoueur)) {
                         compteurMouvement = 0;
                         j.deplacer(directionJoueur);
 
-                        // Collecte d'un lingot sur la case où arrive le joueur
                         if (plateau.getCase(j.getX(), j.getY()) == Case.LINGOT) {
                             plateau.setCase(j.getX(), j.getY(), Case.VIDE);
                             j.ajouterScore(10);
+                        }
+
+                        // la sortie est bloquée tant que tous les lingots ne sont pas ramassés
+                        if (plateau.getCase(j.getX(), j.getY()) == Case.SORTIE) {
+                            j.ajouterScore(100);
+                            plateau.setPartieGagnee(true);
+                            stop();
+                        }
+                    }
+                }
+
+                if (inputHandler.consommerCreuser()) {
+                    int dx = 0;
+                    if (directionJoueur == Direction.GAUCHE) dx = -1;
+                    else if (directionJoueur == Direction.DROITE) dx = 1;
+
+                    if (dx != 0) {
+                        int xCible = j.getX() + dx;
+                        int yCible = j.getY() + 1;
+                        if (physique.peutCreuser(xCible, yCible)) {
+                            regenerateur.ajouterTrou(xCible, yCible);
                         }
                     }
                 }
             } else if (e instanceof Garde) {
                 Garde g = (Garde) e;
-                // IA à implémenter
+
+                if (plateau.getCase(g.getX(), g.getY()) == Case.TROU) {
+                    g.setBloque(true);
+                    g.setDirection(Direction.AUCUNE);
+                }
+
+                if (!enChute && !g.estBloque() && compteurMouvementGardes >= DELAI_MOUVEMENT_GARDES) {
+                    Joueur cible = plateau.getJoueurs().get(0);
+                    Direction dirGarde = ia.calculerMouvement(g, cible);
+                    g.setDirection(dirGarde);
+                    if (dirGarde != Direction.AUCUNE && physique.peutSeDeplacer(g, dirGarde)) {
+                        g.deplacer(dirGarde);
+                    }
+                }
             }
+        }
+
+        if (compteurMouvement >= DELAI_MOUVEMENT) {
+            compteurMouvement = 0;
+        }
+        if (compteurMouvementGardes >= DELAI_MOUVEMENT_GARDES) {
+            compteurMouvementGardes = 0;
         }
 
         verifierCollisions();
     }
 
     private void verifierCollisions() {
-        Joueur j = plateau.getJoueurs().get(0); 
-        
+        Joueur j = plateau.getJoueurs().get(0);
+
         for (Garde g : plateau.getGardes()) {
+            if (plateau.getCase(g.getX(), g.getY()) == Case.TROU) continue;
             if (j.getX() == g.getX() && j.getY() == g.getY()) {
                 j.perdreVie();
+                if (j.estMort()) {
+                    stop();
+                    return;
+                }
                 resetPositions();
             }
         }
@@ -81,10 +132,9 @@ public class Moteur implements Runnable {
         }
     }
 
-    // Boucle principale : 10 FPS, update logique + rendu à chaque frame
     @Override
     public void run() {
-        final long DUREE_FRAME = 100; // ms par frame (10 FPS)
+        final long DUREE_FRAME = 50; // 20 FPS
         this.encours = true;
 
         while (encours) {

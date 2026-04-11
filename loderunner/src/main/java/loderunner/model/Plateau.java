@@ -9,6 +9,7 @@ public class Plateau {
     private ArrayList<Garde> gardes; // Liste des gardes présents sur le plateau
     private int largeur; // Largeur du plateau
     private int hauteur; // Hauteur du plateau
+    private boolean partieGagnee = false;
 
     public Plateau(int largeur, int hauteur) {
         this.largeur = largeur;
@@ -109,6 +110,14 @@ public class Plateau {
             garde.reset();
         }
     }
+    public boolean isPartieGagnee() {
+        return partieGagnee;
+    }
+
+    public void setPartieGagnee(boolean partieGagnee) {
+        this.partieGagnee = partieGagnee;
+    }
+
     public boolean tousLesLingotsRecoltes(){
         for (int x = 0; x < largeur; x++) {
             for (int y = 0; y < hauteur; y++) {

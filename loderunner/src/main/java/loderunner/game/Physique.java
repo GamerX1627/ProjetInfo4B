@@ -77,6 +77,20 @@ public class Physique {
             return this.plateau.tousLesLingotsRecoltes();
         }
 
+        // Personne ne peut entrer dans un TROU déjà occupé
+        if (caseCible == Case.TROU && this.plateau.getEntiteAt(x, y) != null) {
+            return false;
+        }
+
+        // Un garde ne peut pas entrer dans une case déjà occupée par un autre garde
+        if (e instanceof Garde) {
+            for (Garde g : this.plateau.getGardes()) {
+                if (g != e && g.getX() == x && g.getY() == y) {
+                    return false;
+                }
+            }
+        }
+
         return true;
     }
 
@@ -106,18 +120,16 @@ public class Physique {
             return false;
         }
 
+        if (caseEnDessous == Case.TROU && plateau.getEntiteAt(x, ySousEntite) != null) {
+            return false;
+        }
+
         return true;
     }
-    //on ne peut pas creuser dans les bords de la map
     public boolean peutCreuser(int xCible, int yCible) {
-    if (xCible <= 0 || xCible >= plateau.getLargeur() - 1) {
-        return false;
+        if (!plateau.estdansLePlateau(xCible, yCible)) return false;
+        if (xCible <= 0 || xCible >= plateau.getLargeur() - 1) return false;
+        if (yCible <= 0) return false;
+        return plateau.getCase(xCible, yCible) == Case.MUR;
     }
-    if (yCible <= 0 || yCible >= plateau.getHauteur() - 1) {
-        return false;
-    }
-
-    Case cible = plateau.getCase(xCible, yCible);
-    return (cible == Case.MUR);
-}
 }

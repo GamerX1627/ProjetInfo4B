@@ -61,6 +61,10 @@ public class LevelLoader {
                             P.ajouterJoueur(new loderunner.model.Joueur(i, j, P));
                             break;
                         }
+                        case 'G': { // on se sert du G pour indiquer la position de départ d'un garde
+                            P.ajouterGarde(new loderunner.model.Garde(i, j, P));
+                            break;
+                        }
                     }
                 }
             }

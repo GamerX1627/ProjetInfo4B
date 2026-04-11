@@ -1,13 +1,15 @@
 package loderunner.game;
 
 import loderunner.model.Case;
+import loderunner.model.Entite;
+import loderunner.model.Garde;
 import loderunner.model.Plateau;
 import java.util.ArrayList;
 import java.util.Iterator;
 
 public class Regenerateur {
     private Plateau plateau;
-    private final int TEMPS_REBOUCHAGE = 180; // Environ 3 secondes à 60 FPS
+    private final int TEMPS_REBOUCHAGE = 80; // Environ 4 secondes à 20 FPS
     private ArrayList<TrouEnAttente> trous;
 
     public Regenerateur(Plateau p) {
@@ -37,12 +39,18 @@ public class Regenerateur {
         }
     }
 
-    // ici, on vérifie qu'il n'y a personne dans le trou, car si il y a une entite à
-    // l'intérieur, il se verra réinitialisé
+    // si un garde est piégé dans le trou on le réinitialise avant de reboucher
+    // si le joueur est aussi dedans on le replace aussi
     private void reboucher(int x, int y) {
-        if (plateau.getEntiteAt(x, y) != null) {
-            // appel à la réinitialisation du joueur
-            plateau.getEntiteAt(x, y).reset();
+        for (Garde g : plateau.getGardes()) {
+            if (g.getX() == x && g.getY() == y) {
+                g.reset();
+                break;
+            }
+        }
+        Entite entite = plateau.getEntiteAt(x, y);
+        if (entite != null) {
+            entite.reset();
         }
         plateau.setCase(x, y, Case.MUR);
     }

@@ -48,7 +48,5 @@ public class Joueur extends Entite {
     @Override
     public void reset() {
         super.reset(); // Réinitialiser la position du joueur
-        this.score = 0; // Réinitialiser le score
-        this.perdreVie();
     }
 }

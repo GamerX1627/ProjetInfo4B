@@ -6,7 +6,6 @@ package loderunner.ui;
 
 import javax.swing.*;
 import java.awt.*;
-import java.util.ArrayList;
 
 import loderunner.utils.*;
 import loderunner.model.*;
@@ -85,6 +84,11 @@ public class GamePanel extends JPanel {
 
     }
 
+    public void setPlateau(Plateau p) {
+        this.plateau = p;
+        this.tick_moteur = 0;
+    }
+
     public void incrementerTick() {
         this.tick_moteur++;
     }
@@ -130,6 +134,7 @@ public class GamePanel extends JPanel {
                                 TILE_SIZE,
                                 null);
                         break;
+                    case SORTIE:
                     default:
                         g.setColor(Background);
                         g.fillRect(posX, posY, TILE_SIZE, TILE_SIZE);
@@ -140,32 +145,99 @@ public class GamePanel extends JPanel {
     }
 
     private void dessinerEntites(Graphics g) {
-        ArrayList<Joueur> joueurs = plateau.getJoueurs();
-        ArrayList<Garde> gardes = plateau.getGardes();
-        for (int i = 0; i < joueurs.size(); i++) {
-            // appel à la methode animate qui permet de dessiner en fonction du tik moteur
-            // et de la direction de l'entite pour afficher la bonne imgae
-            animate(joueurs.get(i), g);
+        for (Joueur j : plateau.getJoueurs()) {
+            animate(j, g, false);
         }
-        for (int j = 0; j < gardes.size(); j++) {
-            animate(gardes.get(j), g);
+        for (Garde garde : plateau.getGardes()) {
+            animate(garde, g, true);
         }
     }
 
     // méthode qui anime les entites
-    private void animate(Entite e, Graphics g) {
+    private void animate(Entite e, Graphics g, boolean estGarde) {
         long tick = this.getTick();
         Direction dir = e.getDirection();
+        int frame = (int) (tick / 8) % 2;
 
-        // Si immobile, on force la frame 0, sinon on calcule selon le tick
-        int frame = (dir == Direction.AUCUNE) ? 0 : (int) (tick / 8) % 2;
+        String imgPath;
+        if (estGarde) {
+            if (dir == Direction.AUCUNE) {
+                imgPath = "Gardes/AUCUNE.png";
+            } else {
+                imgPath = "Gardes/" + dir + "_" + frame + ".png";
+            }
+        } else {
+            // Pour le joueur, AUCUNE n'existe qu'en frame 0
+            int frameJoueur = (dir == Direction.AUCUNE) ? 0 : frame;
+            imgPath = "Joueur/" + dir + "_" + frameJoueur + ".png";
+        }
 
-        String imgPath = "Joueur/" + dir + "_" + frame + ".png";
         g.drawImage(ImageLoader.getImage(imgPath), e.getX() * TILE_SIZE, e.getY() * TILE_SIZE, null);
-
     }
 
     private void dessinerInterface(Graphics g) {
+        if (plateau.getJoueurs().isEmpty()) return;
+        Joueur joueur = plateau.getJoueurs().get(0);
 
+        int largeurPx = plateau.getLargeur() * TILE_SIZE;
+        int hauteurPx = plateau.getHauteur() * TILE_SIZE;
+
+        // Bandeau semi-transparent sur la bordure haute
+        g.setColor(new Color(0, 0, 0, 150));
+        g.fillRect(0, 0, largeurPx, TILE_SIZE);
+
+        // Score à gauche
+        g.setColor(Color.WHITE);
+        g.setFont(new Font("Arial", Font.BOLD, 18));
+        g.drawString("SCORE : " + joueur.getScore(), 8, 22);
+
+        // Vies à droite sous forme de coeurs
+        Image coeur = ImageLoader.getImage("Environnement/heart.png");
+        int vies = joueur.getVies();
+        for (int i = 0; i < vies; i++) {
+            int posX = largeurPx - (i + 1) * (TILE_SIZE + 2);
+            g.drawImage(coeur, posX, 4, TILE_SIZE, TILE_SIZE - 8, null);
+        }
+
+        // Écran Victoire
+        if (plateau.isPartieGagnee()) {
+            g.setColor(new Color(0, 0, 0, 170));
+            g.fillRect(0, 0, largeurPx, hauteurPx);
+
+            g.setColor(Color.YELLOW);
+            g.setFont(new Font("Arial", Font.BOLD, 48));
+            String texte = "YOU WIN !";
+            FontMetrics fm = g.getFontMetrics();
+            int x = (largeurPx - fm.stringWidth(texte)) / 2;
+            int y = hauteurPx / 2 - 10;
+            g.drawString(texte, x, y);
+
+            g.setColor(Color.WHITE);
+            g.setFont(new Font("Arial", Font.PLAIN, 20));
+            String score = "Score final : " + joueur.getScore();
+            fm = g.getFontMetrics();
+            g.drawString(score, (largeurPx - fm.stringWidth(score)) / 2, y + 40);
+            return;
+        }
+
+        // Écran Game Over
+        if (joueur.estMort()) {
+            g.setColor(new Color(0, 0, 0, 170));
+            g.fillRect(0, 0, largeurPx, hauteurPx);
+
+            g.setColor(Color.RED);
+            g.setFont(new Font("Arial", Font.BOLD, 48));
+            String texte = "GAME OVER";
+            FontMetrics fm = g.getFontMetrics();
+            int x = (largeurPx - fm.stringWidth(texte)) / 2;
+            int y = hauteurPx / 2 - 10;
+            g.drawString(texte, x, y);
+
+            g.setColor(Color.WHITE);
+            g.setFont(new Font("Arial", Font.PLAIN, 20));
+            String score = "Score final : " + joueur.getScore();
+            fm = g.getFontMetrics();
+            g.drawString(score, (largeurPx - fm.stringWidth(score)) / 2, y + 40);
+        }
     }
 }

@@ -1,0 +1,2 @@
+Joueur2 130
+Joueur1 60

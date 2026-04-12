@@ -20,6 +20,8 @@ public class GamePanel extends JPanel {
     private static final int TILE_SIZE = 32;
     private long tick_moteur = 0; // variable qui sera modifiable que par le moteur pour aider avec l'animation
                                   // des entites
+    private int indexJoueurLocal = 0;  // index du joueur contrôlé par ce client (0 en solo)
+    private int indexGardeLocal  = -1; // index du garde contrôlé (-1 si ce client n'est pas un garde)
 
     /**
      * Creates new form GamePanel
@@ -89,6 +91,14 @@ public class GamePanel extends JPanel {
         this.tick_moteur = 0;
     }
 
+    public void setIndexJoueurLocal(int index) {
+        this.indexJoueurLocal = index;
+    }
+
+    public void setIndexGardeLocal(int index) {
+        this.indexGardeLocal = index;
+    }
+
     public void incrementerTick() {
         this.tick_moteur++;
     }
@@ -145,12 +155,32 @@ public class GamePanel extends JPanel {
     }
 
     private void dessinerEntites(Graphics g) {
-        for (Joueur j : plateau.getJoueurs()) {
-            animate(j, g, false);
+        java.util.List<Joueur> joueurs = plateau.getJoueurs();
+        for (int i = 0; i < joueurs.size(); i++) {
+            animate(joueurs.get(i), g, false);
+            if (i == indexJoueurLocal && indexGardeLocal == -1) {
+                dessinerIndicateur(g, joueurs.get(i));
+            }
         }
-        for (Garde garde : plateau.getGardes()) {
-            animate(garde, g, true);
+        java.util.List<Garde> gardes = plateau.getGardes();
+        for (int i = 0; i < gardes.size(); i++) {
+            animate(gardes.get(i), g, true);
+            if (i == indexGardeLocal) {
+                dessinerIndicateur(g, gardes.get(i));
+            }
         }
+    }
+
+    // dessine un petit triangle jaune au-dessus de l'entité pour indiquer "c'est toi"
+    private void dessinerIndicateur(Graphics g, loderunner.model.Entite e) {
+        int cx = e.getX() * TILE_SIZE + TILE_SIZE / 2;
+        int cy = e.getY() * TILE_SIZE - 4;
+        g.setColor(Color.YELLOW);
+        g.fillPolygon(
+            new int[]{ cx - 5, cx + 5, cx },
+            new int[]{ cy - 6, cy - 6, cy },
+            3
+        );
     }
 
     // méthode qui anime les entites
@@ -177,21 +207,24 @@ public class GamePanel extends JPanel {
 
     private void dessinerInterface(Graphics g) {
         if (plateau.getJoueurs().isEmpty()) return;
-        Joueur joueur = plateau.getJoueurs().get(0);
+
+        // joueur local (index 0 en solo, indexJoueurLocal en réseau)
+        int idxLocal = Math.min(indexJoueurLocal, plateau.getJoueurs().size() - 1);
+        Joueur joueur = plateau.getJoueurs().get(idxLocal);
 
         int largeurPx = plateau.getLargeur() * TILE_SIZE;
         int hauteurPx = plateau.getHauteur() * TILE_SIZE;
 
-        // Bandeau semi-transparent sur la bordure haute
+        // bandeau semi-transparent en haut
         g.setColor(new Color(0, 0, 0, 150));
         g.fillRect(0, 0, largeurPx, TILE_SIZE);
 
-        // Score à gauche
+        // score du joueur local à gauche
         g.setColor(Color.WHITE);
         g.setFont(new Font("Arial", Font.BOLD, 18));
         g.drawString("SCORE : " + joueur.getScore(), 8, 22);
 
-        // Vies à droite sous forme de coeurs
+        // vies du joueur local à droite sous forme de coeurs
         Image coeur = ImageLoader.getImage("Environnement/heart.png");
         int vies = joueur.getVies();
         for (int i = 0; i < vies; i++) {
@@ -199,7 +232,12 @@ public class GamePanel extends JPanel {
             g.drawImage(coeur, posX, 4, TILE_SIZE, TILE_SIZE - 8, null);
         }
 
-        // Écran Victoire
+        // tableau des scores de tous les joueurs (visible uniquement en multi)
+        if (plateau.getJoueurs().size() > 1) {
+            dessinerScoreboard(g, largeurPx, hauteurPx);
+        }
+
+        // écran victoire
         if (plateau.isPartieGagnee()) {
             g.setColor(new Color(0, 0, 0, 170));
             g.fillRect(0, 0, largeurPx, hauteurPx);
@@ -220,7 +258,7 @@ public class GamePanel extends JPanel {
             return;
         }
 
-        // Écran Game Over
+        // écran game over
         if (joueur.estMort()) {
             g.setColor(new Color(0, 0, 0, 170));
             g.fillRect(0, 0, largeurPx, hauteurPx);
@@ -238,6 +276,31 @@ public class GamePanel extends JPanel {
             String score = "Score final : " + joueur.getScore();
             fm = g.getFontMetrics();
             g.drawString(score, (largeurPx - fm.stringWidth(score)) / 2, y + 40);
+        }
+    }
+
+    // petit tableau des scores affiché en bas à droite en mode multi
+    private void dessinerScoreboard(Graphics g, int largeurPx, int hauteurPx) {
+        java.util.List<loderunner.model.Joueur> joueurs = plateau.getJoueurs();
+        int ligneH  = 18;
+        int padding = 6;
+        int nbJ     = joueurs.size();
+        int hauteurBloc = nbJ * ligneH + padding * 2;
+        int largeurBloc = 140;
+        int bx = largeurPx - largeurBloc - 4;
+        int by = hauteurPx - hauteurBloc - 4;
+
+        // fond semi-transparent
+        g.setColor(new Color(0, 0, 0, 150));
+        g.fillRect(bx, by, largeurBloc, hauteurBloc);
+
+        g.setFont(new Font("Arial", Font.BOLD, 13));
+        for (int i = 0; i < nbJ; i++) {
+            loderunner.model.Joueur j = joueurs.get(i);
+            // le joueur local est surligné en jaune, les autres en blanc
+            g.setColor(i == indexJoueurLocal ? Color.YELLOW : Color.WHITE);
+            String ligne = "J" + (i + 1) + "  " + j.getScore() + " pts";
+            g.drawString(ligne, bx + padding, by + padding + (i + 1) * ligneH - 2);
         }
     }
 }

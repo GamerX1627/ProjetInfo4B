@@ -3,13 +3,13 @@ package loderunner.network;
 import java.io.Serializable;
 import loderunner.utils.Direction;
 
-// Classe qui contient tous les messages qu'on envoie entre le client et le serveur
-// Chaque message est Serializable pour pouvoir être envoyé avec ObjectOutputStream
+// tous les types de messages échangés entre le client et le serveur
+// ils sont Serializable pour pouvoir transiter par ObjectOutputStream
 public class MessageProtocol {
 
     public static final int PORT_DEFAUT = 12345;
 
-    // Message envoyé par le client au serveur : la direction et si le joueur creuse
+    // envoyé par le client à chaque frame : direction + si on creuse
     public static class MessageInput implements Serializable {
         private static final long serialVersionUID = 1L;
         public final Direction direction;
@@ -21,7 +21,7 @@ public class MessageProtocol {
         }
     }
 
-    // Représente une entité (joueur ou garde) dans un snapshot du jeu
+    // représente une entité (joueur ou garde) dans l'état envoyé par le serveur
     public static class EntiteDTO implements Serializable {
         private static final long serialVersionUID = 1L;
 
@@ -34,9 +34,10 @@ public class MessageProtocol {
         public final int        score;
         public final int        vies;
         public final boolean    bloque;
+        public final String     nomEquipe; // équipe du joueur, vide si pas d'équipe
 
         public EntiteDTO(TypeEntite type, int x, int y, Direction direction,
-                         int score, int vies, boolean bloque) {
+                         int score, int vies, boolean bloque, String nomEquipe) {
             this.type      = type;
             this.x         = x;
             this.y         = y;
@@ -44,11 +45,12 @@ public class MessageProtocol {
             this.score     = score;
             this.vies      = vies;
             this.bloque    = bloque;
+            this.nomEquipe = nomEquipe != null ? nomEquipe : "";
         }
     }
 
-    // Snapshot complet du jeu envoyé par le serveur à chaque tick
-    // cases[x][y] contient l'ordinal() de l'enum Case
+    // l'état complet du jeu envoyé à chaque tick aux clients
+    // cases[x][y] contient l'ordinal() de l'enum Case (plus simple à sérialiser qu'un enum directement)
     public static class EtatJeu implements Serializable {
         private static final long serialVersionUID = 1L;
         public final int          largeur;
@@ -72,20 +74,22 @@ public class MessageProtocol {
         }
     }
 
-    // Rôle choisi par le client : joueur normal ou garde (mode combat)
+    // le rôle qu'on choisit au moment de se connecter
     public enum RoleJoueur { JOUEUR, GARDE }
 
-    // Envoyé par le client au serveur juste après la connexion pour indiquer son rôle
+    // premier message envoyé par le client juste après la connexion
     public static class MessageConnexion implements Serializable {
         private static final long serialVersionUID = 1L;
         public final RoleJoueur role;
+        public final String     nomEquipe; // nom de l'équipe choisie par le joueur
 
-        public MessageConnexion(RoleJoueur role) {
-            this.role = role;
+        public MessageConnexion(RoleJoueur role, String nomEquipe) {
+            this.role      = role;
+            this.nomEquipe = nomEquipe != null ? nomEquipe : "";
         }
     }
 
-    // Envoyé par le serveur au client pour lui dire quelle entité il contrôle et son rôle
+    // réponse du serveur : quelle entité on contrôle et avec quel rôle
     public static class MessageAssignation implements Serializable {
         private static final long serialVersionUID = 1L;
         public final int        indexEntite;
@@ -97,7 +101,7 @@ public class MessageProtocol {
         }
     }
 
-    // Une ligne du leaderboard
+    // une entrée du classement individuel : nom du joueur + score
     public static class EntreeLeaderboard implements Serializable {
         private static final long serialVersionUID = 1L;
         public final String nomJoueur;
@@ -109,13 +113,28 @@ public class MessageProtocol {
         }
     }
 
-    // Le classement complet envoyé à tous les clients en fin de partie
+    // une entrée du classement par équipe : nom de l'équipe + score cumulé
+    public static class EntreeEquipe implements Serializable {
+        private static final long serialVersionUID = 1L;
+        public final String nomEquipe;
+        public final int    score;
+
+        public EntreeEquipe(String nomEquipe, int score) {
+            this.nomEquipe = nomEquipe;
+            this.score     = score;
+        }
+    }
+
+    // le classement complet envoyé à la fin de la partie
+    // entrees = scores individuels, equipes = scores par équipe (peut être vide si pas d'équipes)
     public static class MessageLeaderboard implements Serializable {
         private static final long serialVersionUID = 1L;
         public final EntreeLeaderboard[] entrees;
+        public final EntreeEquipe[]      equipes;
 
-        public MessageLeaderboard(EntreeLeaderboard[] entrees) {
+        public MessageLeaderboard(EntreeLeaderboard[] entrees, EntreeEquipe[] equipes) {
             this.entrees = entrees;
+            this.equipes = equipes;
         }
     }
 }

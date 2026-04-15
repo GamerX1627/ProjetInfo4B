@@ -9,7 +9,7 @@ import java.util.Iterator;
 
 public class Regenerateur {
     private Plateau plateau;
-    private final int TEMPS_REBOUCHAGE = 80; // Environ 4 secondes à 20 FPS
+    private final int TEMPS_REBOUCHAGE = 80; // 80 ticks à 20 FPS = 4 secondes avant que le trou se rebouche
     private ArrayList<TrouEnAttente> trous;
 
     public Regenerateur(Plateau p) {
@@ -17,15 +17,15 @@ public class Regenerateur {
         this.trous = new ArrayList<>();
     }
 
-    // Appelé par le Moteur quand le joueur creuse
+    // appelé quand le joueur creuse une brique — on enregistre le trou et on le crée dans le plateau
     public void ajouterTrou(int x, int y) {
         trous.add(new TrouEnAttente(x, y, TEMPS_REBOUCHAGE));
-        plateau.setCase(x, y, Case.TROU); // On crée le trou physiquement
+        plateau.setCase(x, y, Case.TROU);
     }
 
-    // Appelé à chaque "tick" par le Moteur
-    // générée par l'IA car lors de l'exécution y'avait une erreur qui s'affiche
-    // "ConcurrentModificationException" donc l'IA nous a généré cette partie
+    // appelé à chaque tick par le Moteur pour décrémenter les compteurs
+    // on utilise un Iterator pour pouvoir supprimer pendant qu'on parcourt la liste
+    // (sans ça on avait une ConcurrentModificationException)
     public void mettreAJour() {
         Iterator<TrouEnAttente> it = trous.iterator();
         while (it.hasNext()) {
@@ -39,8 +39,7 @@ public class Regenerateur {
         }
     }
 
-    // si un garde est piégé dans le trou on le réinitialise avant de reboucher
-    // si le joueur est aussi dedans on le replace aussi
+    // quand le trou se rebouche, si quelqu'un est encore dedans on le ramène à sa position de départ
     private void reboucher(int x, int y) {
         for (Garde g : plateau.getGardes()) {
             if (g.getX() == x && g.getY() == y) {
@@ -55,7 +54,7 @@ public class Regenerateur {
         plateau.setCase(x, y, Case.MUR);
     }
 
-    // Petite classe interne pour stocker les infos du trou
+    // classe interne juste pour regrouper les infos d'un trou en attente de rebouchage
     private class TrouEnAttente {
         int x, y, tempsRestant;
 

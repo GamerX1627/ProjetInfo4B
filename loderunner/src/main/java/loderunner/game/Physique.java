@@ -1,5 +1,5 @@
 package loderunner.game;
-// Classe qui applique les lois de la physique aux joueurs et au PNJ (perso non Joueur)
+// gère tout ce qui est physique : est-ce qu'on peut se déplacer, est-ce qu'on tombe, est-ce qu'on peut creuser
 
 import loderunner.model.Case;
 import loderunner.model.Entite;
@@ -17,7 +17,7 @@ public class Physique {
         setPlateau(P);
     }
 
-    // Accesseurs en lecture
+    // getters classiques
     public int getVitesseChute() {
         return this.vitesseChute;
     }
@@ -30,17 +30,15 @@ public class Physique {
         return this.plateau;
     }
 
-    // Accesseurs en Ecriture ( dans notre cas, on ne pourra modifer que le plateau,
-    // rien d'autre)
+    // setter — on peut changer le plateau (utile quand on change de niveau)
     public void setPlateau(Plateau p) {
         this.plateau = p;
     }
 
-    // Prédiction de collision (si y'a le vide , si y'a un mur dans la direction
-    // souhaitée , si il y a un trou afin de savoir ce qu'il faut faire)
+    // vérifie si une entité peut se déplacer dans une direction donnée
+    // on prend en compte les murs, les échelles, les trous occupés, etc.
     public boolean peutSeDeplacer(Entite e, Direction D) {
-        // récupération des différentes coordonnées afin de savoir si le joueur peut se
-        // déplacer dans ses cases
+        // on calcule la position cible selon la direction
         int x = e.getX();
         int y = e.getY();
 
@@ -60,8 +58,7 @@ public class Physique {
             case AUCUNE:
                 return true;
         }
-        // maintennt, vérification des positions(les positions actuelles et les
-        // prochaines positions) si elles sont valides ou pas
+        // si la case cible est hors du plateau, on peut pas y aller
         if (!this.plateau.estPositionValide(x, y)) {
             return false;
         }
@@ -77,12 +74,12 @@ public class Physique {
             return this.plateau.tousLesLingotsRecoltes();
         }
 
-        // Personne ne peut entrer dans un TROU déjà occupé
+        // deux entités ne peuvent pas être dans le même trou
         if (caseCible == Case.TROU && this.plateau.getEntiteAt(x, y) != null) {
             return false;
         }
 
-        // Un garde ne peut pas entrer dans une case déjà occupée par un autre garde
+        // les gardes ne peuvent pas se superposer entre eux
         if (e instanceof Garde) {
             for (Garde g : this.plateau.getGardes()) {
                 if (g != e && g.getX() == x && g.getY() == y) {

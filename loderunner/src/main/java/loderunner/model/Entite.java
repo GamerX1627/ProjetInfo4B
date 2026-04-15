@@ -2,14 +2,16 @@ package loderunner.model;
 
 import loderunner.utils.Direction;
 
-// Classe qui représente une entité dans le jeu, comme un joueur, un ennemi, ou un objet.
+// classe abstraite qui regroupe ce que le joueur et les gardes ont en commun
+// comme ça on évite de dupliquer du code entre Joueur et Garde
 public abstract class Entite {
-    protected int x; // Position horizontale de l'entité
-    protected int y; // Position verticale de l'entité
-    protected int x_Initiale; // Position horizontale initiale de l'entité pour pouvoir la réinitialiser
-    protected int y_Initiale; // Position verticale initiale de l'entité pour pouvoir la réinitialiser
-    protected Plateau plateau; // Référence au plateau de jeu
+    protected int x; // position en colonne
+    protected int y; // position en ligne
+    protected int x_Initiale; // position de départ, on en a besoin pour le reset
+    protected int y_Initiale; // pareil pour y
+    protected Plateau plateau; // référence au plateau, pour vérifier les déplacements
     private Direction directionActuelle;
+    private String nomEquipe = ""; // équipe du joueur dans les parties coopératives
     public Entite(int x, int y, Plateau plateau) {
         this.setPosition(x, y);
         this.x_Initiale = x;
@@ -22,6 +24,14 @@ public abstract class Entite {
     }
     public void setDirection(Direction d){
         this.directionActuelle=d;
+    }
+
+    public String getNomEquipe() {
+        return nomEquipe;
+    }
+
+    public void setNomEquipe(String nomEquipe) {
+        this.nomEquipe = nomEquipe != null ? nomEquipe : "";
     }
     public int getX() {
         return x;
@@ -56,6 +66,6 @@ public abstract class Entite {
     }
 
     public void reset() {
-        this.setPosition(x_Initiale, y_Initiale); // Réinitialiser la position de l'entité
+        this.setPosition(x_Initiale, y_Initiale); // on remet l'entité à sa position de départ
     }
 }

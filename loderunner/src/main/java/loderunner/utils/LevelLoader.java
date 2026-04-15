@@ -8,8 +8,8 @@ import loderunner.model.Case;
 import loderunner.model.Plateau;
 
 public class LevelLoader {
-    public static Plateau loadMap(String cheminFichier) { // méthode qui permet de charger le plateau à partir d'un
-                                                          // fichier texte.
+    // lit le fichier texte du niveau et construit le plateau correspondant
+    public static Plateau loadMap(String cheminFichier) {
         Plateau P = null;
         try (BufferedReader br = new BufferedReader(new FileReader(cheminFichier))) {
             String ligne;
@@ -28,43 +28,33 @@ public class LevelLoader {
                 }
                 for (int i = 0; i < largeur; i++) {
                     switch (ligne.charAt(i)) {
-                        case '#': { // ici, on se sert du # dans le fichier texte pour indiquer au LevelLoader que
-                                    // c'est un mur
+                        case '#': // mur
                             P.setCase(i, j, Case.MUR);
                             break;
-                        }
-                        case 'H': { // ici, on se sert du H pour indiquer que c'est une echelle
+                        case 'H': // échelle
                             P.setCase(i, j, Case.ECHELLE);
                             break;
-                        }
-                        case '-': { // on se sert du - pour indiquer que c'est une passerelle
+                        case '-': // passerelle
                             P.setCase(i, j, Case.PASSERELLE);
                             break;
-                        }
-                        case ' ': { // on se sert de l'espace pour indiquer que c'est le vide
+                        case ' ': // vide (case vide)
                             P.setCase(i, j, Case.VIDE);
                             break;
-                        }
-                        case '£': { // on se sert du £ pour indiquer que c'est un lingot d'or
+                        case '£': // lingot d'or à ramasser
                             P.setCase(i, j, Case.LINGOT);
                             break;
-                        }
-                        case 'S': { // on se sert du S pour indiquer la sortie
+                        case 'S': // sortie du niveau
                             P.setCase(i, j, Case.SORTIE);
                             break;
-                        }
-                        case 'O': { // on se sert du O pour indiquer un trou
+                        case 'O': // trou
                             P.setCase(i, j, Case.TROU);
                             break;
-                        }
-                        case 'P': { // on se sert du P pour indiquer la position de départ du joueur
+                        case 'P': // position de départ du joueur
                             P.ajouterJoueur(new loderunner.model.Joueur(i, j, P));
                             break;
-                        }
-                        case 'G': { // on se sert du G pour indiquer la position de départ d'un garde
+                        case 'G': // position de départ d'un garde
                             P.ajouterGarde(new loderunner.model.Garde(i, j, P));
                             break;
-                        }
                     }
                 }
             }

@@ -7,8 +7,8 @@ import java.io.ObjectOutputStream;
 import java.net.Socket;
 import loderunner.utils.Direction;
 
-// Classe qui gère la connexion avec un client côté serveur
-// On crée un thread de cette classe pour chaque client connecté
+// un thread par client connecté côté serveur
+// il lit les inputs du client et lui envoie les états du jeu
 public class GestionnaireClient implements Runnable {
 
     private final Socket  socket;
@@ -17,11 +17,12 @@ public class GestionnaireClient implements Runnable {
     private ObjectOutputStream sortie;
     private ObjectInputStream  entree;
 
-    // rôle et index de l'entité contrôlée par ce client
+    // le rôle du client (joueur ou garde) et l'index de son entité dans le plateau
     private MessageProtocol.RoleJoueur role       = MessageProtocol.RoleJoueur.JOUEUR;
     private int                        indexEntite = -1;
+    private String                     nomEquipe  = ""; // équipe choisie par le joueur
 
-    // dernier input reçu du client
+    // dernier input reçu (on garde seulement le plus récent)
     private Direction directionCourante = Direction.AUCUNE;
     private boolean   creuser           = false;
     private boolean   connecte          = false;
@@ -34,28 +35,30 @@ public class GestionnaireClient implements Runnable {
     @Override
     public void run() {
         try {
-            // on crée le flux de sortie en premier, sinon ça bloque des deux côtés
+            // flux de sortie en premier des deux côtés, sinon deadlock garanti
             sortie = new ObjectOutputStream(socket.getOutputStream());
             sortie.flush();
             entree = new ObjectInputStream(socket.getInputStream());
 
-            // on lit le rôle choisi par le client
+            // le premier message qu'on reçoit c'est le rôle et l'équipe choisis par le client
             Object premier = entree.readObject();
             if (premier instanceof MessageProtocol.MessageConnexion) {
-                role = ((MessageProtocol.MessageConnexion) premier).role;
+                MessageProtocol.MessageConnexion conn = (MessageProtocol.MessageConnexion) premier;
+                role      = conn.role;
+                nomEquipe = conn.nomEquipe;
             }
 
-            // le serveur assigne l'entité correspondante et met à jour indexEntite
+            // on demande au serveur de nous assigner une entité
             serveur.assignerEntite(this, role);
 
-            // on envoie au client son index et son rôle
+            // on confirme au client son rôle et l'index de son entité
             sortie.writeObject(new MessageProtocol.MessageAssignation(indexEntite, role));
             sortie.flush();
 
             connecte = true;
             System.out.println(role + " " + indexEntite + " connecté depuis " + socket.getInetAddress());
 
-            // on lit en boucle les inputs envoyés par le client
+            // boucle de lecture des inputs du client
             while (!socket.isClosed()) {
                 Object message = entree.readObject();
                 if (message instanceof MessageProtocol.MessageInput) {
@@ -78,7 +81,7 @@ public class GestionnaireClient implements Runnable {
         }
     }
 
-    // retourne true si le joueur veut creuser, et remet à false
+    // consomme l'action creuser : retourne true une seule fois par appui puis remet à false
     public boolean consommerCreuser() {
         if (creuser) {
             creuser = false;
@@ -103,12 +106,16 @@ public class GestionnaireClient implements Runnable {
         this.indexEntite = index;
     }
 
+    public String getNomEquipe() {
+        return nomEquipe;
+    }
+
     public boolean estConnecte() {
         return connecte;
     }
 
-    // envoie l'état du jeu au client
-    // writeUnshared au lieu de writeObject pour que le client reçoive bien un nouvel objet à chaque fois
+    // envoie le snapshot du jeu au client
+    // writeUnshared est important ici : sans ça, Java enverrait une référence vers le même objet et le client ne verrait pas les mises à jour
     public void envoyerEtat(MessageProtocol.EtatJeu etat) {
         if (sortie == null || !connecte) return;
         try {

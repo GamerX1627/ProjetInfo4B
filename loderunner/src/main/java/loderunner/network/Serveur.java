@@ -9,6 +9,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
+import loderunner.game.GestionnaireNiveaux;
 import loderunner.game.IA;
 import loderunner.game.Physique;
 import loderunner.game.Regenerateur;
@@ -19,9 +20,8 @@ import loderunner.model.Plateau;
 import loderunner.utils.Direction;
 import loderunner.utils.LevelLoader;
 
-// Classe qui représente le serveur du jeu en mode réseau
-// Le serveur héberge la partie : il fait tourner la physique, l'IA et envoie
-// l'état du jeu à tous les clients connectés à chaque tick
+// le serveur héberge la partie en réseau
+// c'est lui qui calcule toute la physique et l'IA, les clients reçoivent juste l'état à afficher
 public class Serveur implements Runnable {
 
     private static final int    MAX_JOUEURS            = 4;
@@ -29,15 +29,19 @@ public class Serveur implements Runnable {
     private static final int    DELAI_MOUVEMENT        = 3;
     private static final int    DELAI_MOUVEMENT_GARDES = 6;
     private static final String CHEMIN_NIVEAUX         = "loderunner/src/main/ressources/level/level";
-    private static final String FICHIER_LEADERBOARD    = "leaderboard.txt";
+    private static final String FICHIER_LEADERBOARD    = "loderunner/src/main/ressources/leaderboard.txt";
+    private static final long   DELAI_TRANSITION       = 2000L; // pause entre niveaux
+
+    private int niveauCourant = 1;
+    private int nbNiveaux     = 2;
 
     private final int port;
     private ServerSocket serverSocket;
 
-    // liste des clients connectés
+    // tous les clients actuellement connectés
     private final List<GestionnaireClient> clients = new ArrayList<>();
 
-    // compteurs pour assigner les entités aux clients qui se connectent
+    // indices à assigner au prochain joueur/garde qui se connecte
     private int prochainIndexJoueur = 0;
     private int prochainIndexGarde  = 0;
 
@@ -51,7 +55,7 @@ public class Serveur implements Runnable {
     private int  compteurMouvement      = 0;
     private int  compteurMouvementGardes = 0;
 
-    // le leaderboard est sauvegardé dans un fichier texte
+    // classement des meilleurs scores, chargé depuis un fichier texte au démarrage
     private final List<MessageProtocol.EntreeLeaderboard> leaderboard = new ArrayList<>();
 
     public Serveur(int port) {
@@ -66,7 +70,7 @@ public class Serveur implements Runnable {
         new Serveur(port).demarrer();
     }
 
-    // démarrage en mode terminal (on attend que l'utilisateur appuie sur Entrée)
+    // démarrage sans interface graphique, depuis le terminal
     public void demarrer() {
         chargerLeaderboard();
         chargerNiveau(1);
@@ -84,8 +88,7 @@ public class Serveur implements Runnable {
         lancerBoucleJeu();
     }
 
-    // démarrage depuis l'interface graphique (MainWindow)
-    // on attend que l'hôte clique sur "Lancer la partie"
+    // démarrage depuis l'interface graphique, on attend que l'hôte clique sur "Lancer"
     public void demarrerDepuisUI() {
         chargerLeaderboard();
         chargerNiveau(1);
@@ -103,12 +106,12 @@ public class Serveur implements Runnable {
         lancerBoucleJeu();
     }
 
-    // appelé par MainWindow quand on clique sur "Lancer la partie"
+    // appelé par le bouton "Lancer la partie" dans MainWindow
     public void lancerMaintenantDepuisUI() {
         demanderLancement = true;
     }
 
-    // thread qui accepte les nouvelles connexions clients
+    // tourne en permanence pour accepter les nouveaux clients qui se connectent
     @Override
     public void run() {
         try {
@@ -133,22 +136,41 @@ public class Serveur implements Runnable {
         }
     }
 
-    // boucle de jeu principale : mise à jour + envoi de l'état à 20 FPS
+    // boucle principale à 20 FPS : on met à jour le jeu et on envoie l'état à tous les clients
+    // quand un niveau est terminé on passe au suivant, on s'arrête seulement si tout le monde est mort
     private void lancerBoucleJeu() {
-        encours = true;
         System.out.println("Partie lancée !");
 
-        while (encours) {
-            long debut = System.currentTimeMillis();
+        boolean continuer = true;
+        while (continuer) {
+            // on repart de zéro pour les compteurs à chaque nouveau niveau
+            encours = true;
+            tick = 0;
+            compteurMouvement = 0;
+            compteurMouvementGardes = 0;
 
-            update();
-            broadcastEtat();
+            // boucle du niveau courant
+            while (encours) {
+                long debut = System.currentTimeMillis();
+                update();
+                broadcastEtat();
+                long attente = DUREE_FRAME - (System.currentTimeMillis() - debut);
+                if (attente > 0) {
+                    try { Thread.sleep(attente); }
+                    catch (InterruptedException e) { encours = false; continuer = false; }
+                }
+            }
 
-            long tempsPasse = System.currentTimeMillis() - debut;
-            long attente    = DUREE_FRAME - tempsPasse;
-            if (attente > 0) {
-                try { Thread.sleep(attente); }
-                catch (InterruptedException e) { encours = false; }
+            if (plateau.isPartieGagnee()) {
+                // niveau terminé : on envoie l'état de victoire puis on attend avant de charger le suivant
+                broadcastEtat();
+                try { Thread.sleep(DELAI_TRANSITION); }
+                catch (InterruptedException e) { break; }
+                niveauCourant++;
+                passerAuNiveauSuivant();
+            } else {
+                // tous les joueurs sont morts, la partie est finie
+                continuer = false;
             }
         }
 
@@ -167,7 +189,7 @@ public class Serveur implements Runnable {
         compteurMouvement++;
         compteurMouvementGardes++;
 
-        // on fait une copie de la liste pour éviter les problèmes si un client se déconnecte pendant l'update
+        // copie de la liste pour éviter une ConcurrentModificationException si un client se déconnecte pendant l'update
         List<GestionnaireClient> clientsCopie;
         synchronized (clients) {
             clientsCopie = new ArrayList<>(clients);
@@ -175,7 +197,7 @@ public class Serveur implements Runnable {
 
         List<Joueur> joueurs = plateau.getJoueurs();
 
-        // mise à jour de chaque joueur selon les inputs reçus de son client
+        // on traite les inputs de chaque client connecté en tant que joueur
         for (GestionnaireClient gc : clientsCopie) {
             if (gc.getRole() != MessageProtocol.RoleJoueur.JOUEUR) continue;
             int idx = gc.getIndexEntite();
@@ -225,7 +247,7 @@ public class Serveur implements Runnable {
             }
         }
 
-        // mise à jour des gardes : humain si un client contrôle ce garde, sinon IA
+        // pour chaque garde : si un client le contrôle on prend ses inputs, sinon l'IA décide
         List<Garde> gardes = plateau.getGardes();
         for (int gi = 0; gi < gardes.size(); gi++) {
             Garde g = gardes.get(gi);
@@ -239,13 +261,13 @@ public class Serveur implements Runnable {
 
             if (!enChute && !g.estBloque()
                     && compteurMouvementGardes >= DELAI_MOUVEMENT_GARDES) {
-                // on cherche si un client contrôle ce garde
+                // est-ce qu'un joueur humain contrôle ce garde ?
                 GestionnaireClient gcGarde = trouverClientGarde(gi, clientsCopie);
                 Direction dirGarde;
                 if (gcGarde != null) {
                     dirGarde = gcGarde.getDirectionCourante();
                 } else if (!joueurs.isEmpty()) {
-                    dirGarde = ia.calculerMouvement(g, joueurs.get(0));
+                    dirGarde = ia.calculerMouvement(g, trouverJoueurLePlusProche(g, joueurs));
                 } else {
                     dirGarde = Direction.AUCUNE;
                 }
@@ -279,7 +301,7 @@ public class Serveur implements Runnable {
         }
     }
 
-    // envoie l'état du jeu à tous les clients connectés
+    // envoie un snapshot du jeu à tous les clients
     public void broadcastEtat() {
         MessageProtocol.EtatJeu etat = construireEtat();
         List<GestionnaireClient> clientsCopie;
@@ -291,7 +313,7 @@ public class Serveur implements Runnable {
         }
     }
 
-    // construit un objet EtatJeu à partir du plateau actuel
+    // crée un objet avec toutes les infos du jeu à envoyer aux clients
     private MessageProtocol.EtatJeu construireEtat() {
         int largeur = plateau.getLargeur();
         int hauteur = plateau.getHauteur();
@@ -312,13 +334,13 @@ public class Serveur implements Runnable {
             dtos[i++] = new MessageProtocol.EntiteDTO(
                     MessageProtocol.EntiteDTO.TypeEntite.JOUEUR,
                     j.getX(), j.getY(), j.getDirection(),
-                    j.getScore(), j.getVies(), false);
+                    j.getScore(), j.getVies(), false, j.getNomEquipe());
         }
         for (Garde g : gardes) {
             dtos[i++] = new MessageProtocol.EntiteDTO(
                     MessageProtocol.EntiteDTO.TypeEntite.GARDE,
                     g.getX(), g.getY(), g.getDirection(),
-                    0, 0, g.estBloque());
+                    0, 0, g.estBloque(), "");
         }
 
         boolean toutsMorts = !joueurs.isEmpty()
@@ -328,7 +350,8 @@ public class Serveur implements Runnable {
                 plateau.isPartieGagnee(), toutsMorts, tick);
     }
 
-    // assigne une entité (joueur ou garde) au client selon son rôle
+    // quand un client se connecte, on lui assigne un joueur ou un garde du plateau
+    // on stocke aussi son nom d'équipe directement sur l'entité
     public synchronized void assignerEntite(GestionnaireClient gc, MessageProtocol.RoleJoueur role) {
         if (role == MessageProtocol.RoleJoueur.GARDE) {
             int index = prochainIndexGarde++;
@@ -336,7 +359,7 @@ public class Serveur implements Runnable {
             if (index < plateau.getGardes().size()) {
                 gc.setIndexEntite(index);
             } else {
-                // pas assez de gardes dans le niveau, on refuse silencieusement
+                // pas assez de gardes dans le niveau pour ce client
                 gc.setIndexEntite(-1);
             }
         } else {
@@ -345,10 +368,27 @@ public class Serveur implements Runnable {
                 plateau.ajouterJoueur(new Joueur(1, plateau.getHauteur() - 2, plateau));
             }
             gc.setIndexEntite(index);
+            // on mémorise l'équipe sur l'objet Joueur lui-même pour pouvoir l'envoyer aux clients
+            plateau.getJoueurs().get(index).setNomEquipe(gc.getNomEquipe());
         }
     }
 
-    // retourne le client qui contrôle le garde à l'index donné, ou null si c'est l'IA
+    // trouve le joueur le plus proche d'un garde (distance de Manhattan)
+    // utilisé par l'IA pour savoir qui poursuivre quand il y a plusieurs joueurs
+    private Joueur trouverJoueurLePlusProche(Garde garde, List<Joueur> joueurs) {
+        Joueur plusProche = null;
+        int distMin = Integer.MAX_VALUE;
+        for (Joueur j : joueurs) {
+            int dist = Math.abs(j.getX() - garde.getX()) + Math.abs(j.getY() - garde.getY());
+            if (dist < distMin) {
+                distMin = dist;
+                plusProche = j;
+            }
+        }
+        return plusProche;
+    }
+
+    // cherche si un client contrôle le garde à cet index, retourne null si c'est l'IA qui gère
     private GestionnaireClient trouverClientGarde(int indexGarde, List<GestionnaireClient> liste) {
         for (GestionnaireClient gc : liste) {
             if (gc.getRole() == MessageProtocol.RoleJoueur.GARDE
@@ -359,32 +399,61 @@ public class Serveur implements Runnable {
         return null;
     }
 
-    // appelé par GestionnaireClient quand un client se déconnecte
+    // appelé par GestionnaireClient quand un client quitte la partie
     public void deconnecterClient(GestionnaireClient gc) {
-        clients.remove(gc);
+        synchronized (clients) {
+            clients.remove(gc);
+        }
         System.out.println(gc.getRole() + " " + gc.getIndexEntite() + " déconnecté.");
     }
 
-    // enregistre les scores des joueurs dans le leaderboard
+    // à la fin de la partie, on ajoute les scores dans le classement et on le sauvegarde
     private void enregistrerScores() {
         List<Joueur> joueurs = plateau.getJoueurs();
-        List<GestionnaireClient> clientsCopie;
-        synchronized (clients) {
-            clientsCopie = new ArrayList<>(clients);
-        }
-        for (int i = 0; i < clientsCopie.size() && i < joueurs.size(); i++) {
-            leaderboard.add(new MessageProtocol.EntreeLeaderboard(
-                    "Joueur" + (i + 1), joueurs.get(i).getScore()));
+        for (int i = 0; i < joueurs.size(); i++) {
+            Joueur j = joueurs.get(i);
+            // si le joueur a un nom d'équipe on l'utilise comme label, sinon "JoueurN"
+            String label = j.getNomEquipe().isEmpty() ? "Joueur" + (i + 1) : j.getNomEquipe();
+            leaderboard.add(new MessageProtocol.EntreeLeaderboard(label, j.getScore()));
         }
         leaderboard.sort((a, b) -> b.score - a.score);
         while (leaderboard.size() > 10) leaderboard.remove(leaderboard.size() - 1);
         sauvegarderLeaderboard();
     }
 
+    // calcule les scores cumulés par équipe à partir des joueurs présents sur le plateau
+    private List<MessageProtocol.EntreeEquipe> calculerScoresEquipes() {
+        List<MessageProtocol.EntreeEquipe> equipes = new ArrayList<>();
+        List<Joueur> joueurs = plateau.getJoueurs();
+        for (Joueur j : joueurs) {
+            String equipe = j.getNomEquipe();
+            if (equipe.isEmpty()) continue; // joueur sans équipe, on ignore
+            // on cherche si l'équipe existe déjà dans la liste
+            boolean trouve = false;
+            for (int i = 0; i < equipes.size(); i++) {
+                if (equipes.get(i).nomEquipe.equals(equipe)) {
+                    equipes.set(i, new MessageProtocol.EntreeEquipe(equipe,
+                            equipes.get(i).score + j.getScore()));
+                    trouve = true;
+                    break;
+                }
+            }
+            if (!trouve) {
+                equipes.add(new MessageProtocol.EntreeEquipe(equipe, j.getScore()));
+            }
+        }
+        equipes.sort((a, b) -> b.score - a.score);
+        return equipes;
+    }
+
     private void broadcastLeaderboard() {
         MessageProtocol.EntreeLeaderboard[] entrees =
                 leaderboard.toArray(new MessageProtocol.EntreeLeaderboard[0]);
-        MessageProtocol.MessageLeaderboard lb = new MessageProtocol.MessageLeaderboard(entrees);
+        List<MessageProtocol.EntreeEquipe> equipesList = calculerScoresEquipes();
+        MessageProtocol.EntreeEquipe[] equipes =
+                equipesList.toArray(new MessageProtocol.EntreeEquipe[0]);
+        MessageProtocol.MessageLeaderboard lb =
+                new MessageProtocol.MessageLeaderboard(entrees, equipes);
         List<GestionnaireClient> clientsCopie;
         synchronized (clients) {
             clientsCopie = new ArrayList<>(clients);
@@ -394,7 +463,7 @@ public class Serveur implements Runnable {
         }
     }
 
-    // charge le leaderboard depuis le fichier texte
+    // lecture du classement sauvegardé depuis la dernière partie
     private void chargerLeaderboard() {
         try (BufferedReader br = new BufferedReader(new FileReader(FICHIER_LEADERBOARD))) {
             String ligne;
@@ -408,7 +477,7 @@ public class Serveur implements Runnable {
                 }
             }
         } catch (IOException e) {
-            // pas de fichier au premier lancement, c'est normal
+            // pas de fichier leaderboard au premier lancement, c'est normal
         }
     }
 
@@ -420,6 +489,36 @@ public class Serveur implements Runnable {
             }
         } catch (IOException e) {
             e.printStackTrace();
+        }
+    }
+
+    // passe au niveau suivant en gardant les clients connectés
+    private void passerAuNiveauSuivant() {
+        if (niveauCourant >= nbNiveaux) {
+            // plus de niveaux fixes, on en génère un nouveau aléatoirement (toujours dans level3.txt)
+            new GestionnaireNiveaux(null, null).genererNiveau();
+            if (nbNiveaux < 3) nbNiveaux = 3;
+        }
+        chargerNiveau(niveauCourant);
+        reassignerEntitesClients();
+        System.out.println("Niveau " + niveauCourant + " chargé.");
+    }
+
+    // le nouveau plateau chargé depuis le fichier n'a qu'un seul joueur (le 'P')
+    // donc on re-ajoute les joueurs supplémentaires pour tous les clients déjà connectés
+    private void reassignerEntitesClients() {
+        List<GestionnaireClient> clientsCopie;
+        synchronized (clients) {
+            clientsCopie = new ArrayList<>(clients);
+        }
+        for (GestionnaireClient gc : clientsCopie) {
+            int idx = gc.getIndexEntite();
+            if (idx < 0) continue;
+            if (gc.getRole() == MessageProtocol.RoleJoueur.JOUEUR) {
+                while (plateau.getJoueurs().size() <= idx) {
+                    plateau.ajouterJoueur(new Joueur(1, plateau.getHauteur() - 2, plateau));
+                }
+            }
         }
     }
 

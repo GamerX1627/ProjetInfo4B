@@ -18,10 +18,9 @@ import loderunner.model.*;
 public class GamePanel extends JPanel {
     private Plateau plateau;
     private static final int TILE_SIZE = 32;
-    private long tick_moteur = 0; // variable qui sera modifiable que par le moteur pour aider avec l'animation
-                                  // des entites
-    private int indexJoueurLocal = 0;  // index du joueur contrôlé par ce client (0 en solo)
-    private int indexGardeLocal  = -1; // index du garde contrôlé (-1 si ce client n'est pas un garde)
+    private long tick_moteur = 0; // compteur de frames, utilisé pour animer les sprites
+    private int indexJoueurLocal = 0;  // index du joueur qu'on contrôle (0 en solo, autre en réseau)
+    private int indexGardeLocal  = -1; // index du garde qu'on contrôle, -1 si on n'est pas un garde
 
     /**
      * Creates new form GamePanel
@@ -66,21 +65,19 @@ public class GamePanel extends JPanel {
     public GamePanel(Plateau p) {
         this.plateau = p;
         initComponents();
-        // 1. Calcul de la taille basée sur le modèle (Largeur x Hauteur du plateau)
+        // taille en pixels selon le nombre de cases
         int largeurPx = plateau.getLargeur() * TILE_SIZE;
         int hauteurPx = plateau.getHauteur() * TILE_SIZE;
         Dimension dimensionJeu = new Dimension(largeurPx, hauteurPx);
 
-        // 2. Configuration de la fenêtre (Fixe et précise)
+        // taille fixe pour que la fenêtre ne soit pas redimensionnable
         this.setPreferredSize(dimensionJeu);
         this.setMinimumSize(dimensionJeu);
         this.setMaximumSize(dimensionJeu);
 
-        // 3. Optimisations graphiques
-        this.setBackground(new Color(173, 216, 230)); // Le bleu ciel par défaut
-        this.setDoubleBuffered(true); // Élimine les scintillements
+        this.setBackground(new Color(173, 216, 230)); // fond bleu ciel
+        this.setDoubleBuffered(true); // double buffering pour éviter le clignotement
 
-        // 4. Préparation des entrées (Clavier)
         this.setFocusable(true);
         this.requestFocusInWindow();
 
@@ -171,7 +168,8 @@ public class GamePanel extends JPanel {
         }
     }
 
-    // dessine un petit triangle jaune au-dessus de l'entité pour indiquer "c'est toi"
+    // petit triangle jaune au-dessus de l'entité pour savoir lequel c'est le nôtre
+    // et nom d'équipe juste au-dessus si le joueur en a une
     private void dessinerIndicateur(Graphics g, loderunner.model.Entite e) {
         int cx = e.getX() * TILE_SIZE + TILE_SIZE / 2;
         int cy = e.getY() * TILE_SIZE - 4;
@@ -181,9 +179,25 @@ public class GamePanel extends JPanel {
             new int[]{ cy - 6, cy - 6, cy },
             3
         );
+        // si l'entité appartient à une équipe on affiche son nom en petit au-dessus
+        String equipe = e.getNomEquipe();
+        if (!equipe.isEmpty()) {
+            g.setFont(new Font("Arial", Font.BOLD, 9));
+            FontMetrics fm = g.getFontMetrics();
+            int tx = cx - fm.stringWidth(equipe) / 2;
+            int ty = cy - 8;
+            // contour noir pour la lisibilité
+            g.setColor(Color.BLACK);
+            g.drawString(equipe, tx - 1, ty);
+            g.drawString(equipe, tx + 1, ty);
+            g.drawString(equipe, tx, ty - 1);
+            g.drawString(equipe, tx, ty + 1);
+            g.setColor(Color.YELLOW);
+            g.drawString(equipe, tx, ty);
+        }
     }
 
-    // méthode qui anime les entites
+    // choisit le bon sprite selon la direction et la frame d'animation
     private void animate(Entite e, Graphics g, boolean estGarde) {
         long tick = this.getTick();
         Direction dir = e.getDirection();
@@ -197,7 +211,7 @@ public class GamePanel extends JPanel {
                 imgPath = "Gardes/" + dir + "_" + frame + ".png";
             }
         } else {
-            // Pour le joueur, AUCUNE n'existe qu'en frame 0
+            // quand le joueur ne bouge pas on reste sur la frame 0
             int frameJoueur = (dir == Direction.AUCUNE) ? 0 : frame;
             imgPath = "Joueur/" + dir + "_" + frameJoueur + ".png";
         }
@@ -208,7 +222,7 @@ public class GamePanel extends JPanel {
     private void dessinerInterface(Graphics g) {
         if (plateau.getJoueurs().isEmpty()) return;
 
-        // joueur local (index 0 en solo, indexJoueurLocal en réseau)
+        // on affiche le score et les vies du joueur qu'on contrôle
         int idxLocal = Math.min(indexJoueurLocal, plateau.getJoueurs().size() - 1);
         Joueur joueur = plateau.getJoueurs().get(idxLocal);
 
@@ -219,12 +233,12 @@ public class GamePanel extends JPanel {
         g.setColor(new Color(0, 0, 0, 150));
         g.fillRect(0, 0, largeurPx, TILE_SIZE);
 
-        // score du joueur local à gauche
+        // score à gauche
         g.setColor(Color.WHITE);
         g.setFont(new Font("Arial", Font.BOLD, 18));
         g.drawString("SCORE : " + joueur.getScore(), 8, 22);
 
-        // vies du joueur local à droite sous forme de coeurs
+        // vies affichées à droite avec des icônes de cœur
         Image coeur = ImageLoader.getImage("Environnement/heart.png");
         int vies = joueur.getVies();
         for (int i = 0; i < vies; i++) {
@@ -232,7 +246,7 @@ public class GamePanel extends JPanel {
             g.drawImage(coeur, posX, 4, TILE_SIZE, TILE_SIZE - 8, null);
         }
 
-        // tableau des scores de tous les joueurs (visible uniquement en multi)
+        // en mode multi on affiche le score de tous les joueurs
         if (plateau.getJoueurs().size() > 1) {
             dessinerScoreboard(g, largeurPx, hauteurPx);
         }
@@ -258,8 +272,8 @@ public class GamePanel extends JPanel {
             return;
         }
 
-        // écran game over
-        if (joueur.estMort()) {
+        // écran game over : soit le joueur local est mort, soit le serveur a signalé que tout le monde est mort
+        if (joueur.estMort() || plateau.isPartiePerdue()) {
             g.setColor(new Color(0, 0, 0, 170));
             g.fillRect(0, 0, largeurPx, hauteurPx);
 
@@ -279,7 +293,7 @@ public class GamePanel extends JPanel {
         }
     }
 
-    // petit tableau des scores affiché en bas à droite en mode multi
+    // scoreboard en bas à droite, visible seulement quand y'a plusieurs joueurs
     private void dessinerScoreboard(Graphics g, int largeurPx, int hauteurPx) {
         java.util.List<loderunner.model.Joueur> joueurs = plateau.getJoueurs();
         int ligneH  = 18;
@@ -297,7 +311,7 @@ public class GamePanel extends JPanel {
         g.setFont(new Font("Arial", Font.BOLD, 13));
         for (int i = 0; i < nbJ; i++) {
             loderunner.model.Joueur j = joueurs.get(i);
-            // le joueur local est surligné en jaune, les autres en blanc
+            // on met en jaune notre propre score pour le distinguer des autres
             g.setColor(i == indexJoueurLocal ? Color.YELLOW : Color.WHITE);
             String ligne = "J" + (i + 1) + "  " + j.getScore() + " pts";
             g.drawString(ligne, bx + padding, by + padding + (i + 1) * ligneH - 2);

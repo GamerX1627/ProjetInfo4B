@@ -8,24 +8,23 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class ImageLoader {
-    // ici on stocke les images déjà chargées en mémoire
+    // cache pour ne pas recharger les images à chaque frame, ça serait trop lent
     private static Map<String, BufferedImage> cacheImages = new HashMap<>();
 
     public static BufferedImage getImage(String nomFichier) {
-        // On vérifie si l'image est déjà chargée en mémoir
+        // si l'image est déjà dans le cache on la retourne directement
         if (cacheImages.containsKey(nomFichier)) {
             return cacheImages.get(nomFichier);
         }
 
-        // Si non, on tente de la charger depuis le dossier "assets"
+        // sinon on la charge depuis le dossier ressources et on la met en cache
         try {
             BufferedImage img = ImageIO.read(new File("loderunner/src/main/ressources/images/" + nomFichier));
-            cacheImages.put(nomFichier, img); // On garde l'image pour éviter qu'elle soit encore chargée à chaque
-                                              // niveau
+            cacheImages.put(nomFichier, img);
             return img;
         } catch (IOException e) {
             System.err.println("Erreur : Impossible de charger l'image " + nomFichier);
-            return genererImageErreur(); //
+            return genererImageErreur();
         }
     }
 

@@ -99,10 +99,6 @@ public class MainWindow extends JFrame {
         return btn;
     }
 
-    // ------------------------------------------------------------------ //
-    //  Actions des boutons                                                //
-    // ------------------------------------------------------------------ //
-
     private void lancerSolo(ActionEvent e) {
         dispose();
         InputHandler ih = new InputHandler();
@@ -155,8 +151,33 @@ public class MainWindow extends JFrame {
         gbc.gridy  = 4;
         gbc.insets = new Insets(20, 0, 0, 0);
         panel.add(creerBouton("Lancer la partie", ev -> {
+            // l'hôte choisit son rôle avant de lancer
+            String[] options = { "Joueur", "Garde (mode combat)" };
+            int choix = JOptionPane.showOptionDialog(
+                    attente,
+                    "Quel rôle veux-tu jouer ?",
+                    "Choix du rôle",
+                    JOptionPane.DEFAULT_OPTION,
+                    JOptionPane.QUESTION_MESSAGE,
+                    null, options, options[0]);
+            if (choix < 0) return; // annulé
+            MessageProtocol.RoleJoueur roleHote = (choix == 1)
+                    ? MessageProtocol.RoleJoueur.GARDE
+                    : MessageProtocol.RoleJoueur.JOUEUR;
+            // nom d'équipe (optionnel, surtout utile en mode coopératif)
+            String equipeHote = "";
+            if (roleHote == MessageProtocol.RoleJoueur.JOUEUR) {
+                String saisie = JOptionPane.showInputDialog(attente,
+                        "Nom de ton équipe (laisser vide pour jouer solo) :",
+                        "Équipe", JOptionPane.QUESTION_MESSAGE);
+                if (saisie == null) return; // annulé
+                equipeHote = saisie.trim();
+            }
             attente.dispose();
             serveurGlobal.lancerMaintenantDepuisUI();
+            // l'hôte se connecte aussi comme client sur localhost
+            Client clientHote = new Client("localhost", MessageProtocol.PORT_DEFAUT, roleHote, equipeHote);
+            new Thread(() -> clientHote.connecter(), "Thread-Hote-Client").start();
         }), gbc);
 
         attente.setContentPane(panel);
@@ -190,8 +211,18 @@ public class MainWindow extends JFrame {
                 ? loderunner.network.MessageProtocol.RoleJoueur.GARDE
                 : loderunner.network.MessageProtocol.RoleJoueur.JOUEUR;
 
+        // nom d'équipe uniquement pour les joueurs (en mode coopératif les joueurs de la même équipe cumulent leur score)
+        String equipe = "";
+        if (role == MessageProtocol.RoleJoueur.JOUEUR) {
+            String saisie = JOptionPane.showInputDialog(this,
+                    "Nom de ton équipe (laisser vide pour jouer solo) :",
+                    "Équipe", JOptionPane.QUESTION_MESSAGE);
+            if (saisie == null) return; // annulé
+            equipe = saisie.trim();
+        }
+
         dispose();
-        Client client = new Client(ip.trim(), MessageProtocol.PORT_DEFAUT, role);
+        Client client = new Client(ip.trim(), MessageProtocol.PORT_DEFAUT, role, equipe);
         new Thread(() -> client.connecter(), "Thread-Client").start();
     }
 

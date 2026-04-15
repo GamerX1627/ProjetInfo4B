@@ -13,15 +13,17 @@ import loderunner.model.Joueur;
 import loderunner.model.Plateau;
 import loderunner.ui.GamePanel;
 import loderunner.ui.InputHandler;
+import loderunner.ui.LeaderboardWindow;
 import loderunner.utils.Direction;
 
-// Classe qui représente le client en mode réseau
-// Le client se connecte au serveur, envoie ses inputs et reçoit l'état du jeu pour l'afficher
+// le client se connecte au serveur, envoie les touches pressées et affiche l'état reçu
+// toute la logique du jeu est côté serveur, le client ne fait qu'afficher
 public class Client implements Runnable {
 
     private final String                       hote;
     private final int                          port;
     private final MessageProtocol.RoleJoueur   role;
+    private final String                       nomEquipe;
 
     private Socket             socket;
     private ObjectOutputStream sortie;
@@ -38,9 +40,14 @@ public class Client implements Runnable {
     private Plateau plateauLocal;
 
     public Client(String hote, int port, MessageProtocol.RoleJoueur role) {
-        this.hote = hote;
-        this.port = port;
-        this.role = role;
+        this(hote, port, role, "");
+    }
+
+    public Client(String hote, int port, MessageProtocol.RoleJoueur role, String nomEquipe) {
+        this.hote      = hote;
+        this.port      = port;
+        this.role      = role;
+        this.nomEquipe = nomEquipe != null ? nomEquipe : "";
     }
 
     public static void main(String[] args) {
@@ -57,18 +64,18 @@ public class Client implements Runnable {
     public void connecter() {
         try {
             socket = new Socket(hote, port);
-            // on crée le flux de sortie en premier, sinon ça bloque des deux côtés
+            // important : il faut créer le flux de sortie en premier des deux côtés, sinon ça bloque indéfiniment
             sortie = new ObjectOutputStream(socket.getOutputStream());
             sortie.flush();
             entree = new ObjectInputStream(socket.getInputStream());
 
             System.out.println("Connecté à " + hote + ":" + port);
 
-            // on envoie notre rôle au serveur
-            sortie.writeObject(new MessageProtocol.MessageConnexion(role));
+            // on dit au serveur notre rôle et notre équipe
+            sortie.writeObject(new MessageProtocol.MessageConnexion(role, nomEquipe));
             sortie.flush();
 
-            // on reçoit l'index de l'entité qu'on contrôle
+            // le serveur nous répond avec l'index de l'entité qui nous est assignée
             Object premier = entree.readObject();
             if (premier instanceof MessageProtocol.MessageAssignation) {
                 MessageProtocol.MessageAssignation assignation = (MessageProtocol.MessageAssignation) premier;
@@ -76,7 +83,7 @@ public class Client implements Runnable {
                 System.out.println("Assigné comme " + assignation.role + " " + indexJoueur);
             }
 
-            // on crée un plateau vide pour l'affichage, il sera mis à jour dès le premier EtatJeu reçu
+            // plateau local vide pour l'instant, il sera mis à jour dès qu'on reçoit le premier état du serveur
             plateauLocal = new Plateau(20, 15);
             plateauLocal.initPlateau();
             inputHandler = new InputHandler();
@@ -102,12 +109,12 @@ public class Client implements Runnable {
                 panel.requestFocusInWindow();
             });
 
-            // thread séparé pour envoyer les inputs au serveur
+            // on envoie les inputs dans un thread séparé pour ne pas bloquer la réception
             Thread envoyeur = new Thread(this, "Envoyeur-Inputs");
             envoyeur.setDaemon(true);
             envoyeur.start();
 
-            // boucle principale : on attend les messages du serveur
+            // boucle principale : on attend les états du serveur et on les affiche
             while (!socket.isClosed()) {
                 Object message = entree.readObject();
                 if (message instanceof MessageProtocol.EtatJeu) {
@@ -130,7 +137,7 @@ public class Client implements Runnable {
         }
     }
 
-    // thread qui envoie les inputs du joueur au serveur 20 fois par seconde
+    // envoie la direction et si on creuse au serveur, 20 fois par seconde
     @Override
     public void run() {
         while (socket != null && !socket.isClosed()) {
@@ -146,9 +153,9 @@ public class Client implements Runnable {
         }
     }
 
-    // met à jour le plateau local avec l'état reçu du serveur
+    // on applique l'état reçu du serveur sur notre plateau local pour l'affichage
     private void appliquerEtat(MessageProtocol.EtatJeu etat) {
-        // si les dimensions ont changé on recrée le plateau
+        // si les dimensions changent (nouveau niveau), on recrée le plateau local
         if (plateauLocal.getLargeur() != etat.largeur
                 || plateauLocal.getHauteur() != etat.hauteur) {
             plateauLocal = new Plateau(etat.largeur, etat.hauteur);
@@ -158,14 +165,14 @@ public class Client implements Runnable {
             }
         }
 
-        // on met à jour toutes les cases
+        // mise à jour de toutes les cases du plateau (murs, lingots, trous...)
         for (int x = 0; x < etat.largeur; x++) {
             for (int y = 0; y < etat.hauteur; y++) {
                 plateauLocal.setCase(x, y, Case.values()[etat.cases[x][y]]);
             }
         }
 
-        // on compte combien de joueurs et gardes il y a dans l'état reçu
+        // on compte les joueurs et gardes dans l'état pour savoir si on doit en ajouter localement
         int nbJoueurs = 0;
         int nbGardes  = 0;
         for (MessageProtocol.EntiteDTO dto : etat.entites) {
@@ -173,7 +180,7 @@ public class Client implements Runnable {
             else nbGardes++;
         }
 
-        // on ajoute des entités locales si le serveur en a plus que nous
+        // si le serveur a plus d'entités que nous (ex: nouveau joueur connecté), on en crée localement
         while (plateauLocal.getJoueurs().size() < nbJoueurs) {
             plateauLocal.ajouterJoueur(new Joueur(0, 0, plateauLocal));
         }
@@ -181,7 +188,7 @@ public class Client implements Runnable {
             plateauLocal.ajouterGarde(new Garde(0, 0, plateauLocal));
         }
 
-        // on met à jour la position et la direction de chaque entité
+        // mise à jour des positions et directions de toutes les entités
         int iJ = 0;
         int iG = 0;
         for (MessageProtocol.EntiteDTO dto : etat.entites) {
@@ -189,6 +196,7 @@ public class Client implements Runnable {
                 Joueur j = plateauLocal.getJoueurs().get(iJ++);
                 j.setPosition(dto.x, dto.y);
                 j.setDirection(dto.direction);
+                j.setNomEquipe(dto.nomEquipe);
                 syncScore(j, dto.score);
                 syncVies(j, dto.vies);
             } else {
@@ -200,15 +208,16 @@ public class Client implements Runnable {
         }
 
         plateauLocal.setPartieGagnee(etat.partieGagnee);
+        plateauLocal.setPartiePerdue(etat.partiePerdue);
     }
 
-    // met à jour le score local pour qu'il corresponde au score du serveur
+    // synchronise le score local avec celui du serveur (on calcule la différence et on l'ajoute)
     private void syncScore(Joueur j, int scoreServeur) {
         int diff = scoreServeur - j.getScore();
         if (diff != 0) j.ajouterScore(diff);
     }
 
-    // met à jour les vies locales pour qu'elles correspondent aux vies du serveur
+    // idem pour les vies
     private void syncVies(Joueur j, int viesServeur) {
         while (j.getVies() > viesServeur) {
             j.perdreVie();
@@ -216,12 +225,7 @@ public class Client implements Runnable {
     }
 
     private void afficherLeaderboard(MessageProtocol.MessageLeaderboard lb) {
-        System.out.println("\n=== LEADERBOARD ===");
-        for (int i = 0; i < lb.entrees.length; i++) {
-            System.out.printf("%2d. %-15s %5d pts%n",
-                    i + 1, lb.entrees[i].nomJoueur, lb.entrees[i].score);
-        }
-        System.out.println("===================\n");
+        LeaderboardWindow.afficher(lb.entrees, lb.equipes);
     }
 
     private void fermer() {

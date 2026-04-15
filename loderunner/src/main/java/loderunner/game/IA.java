@@ -70,7 +70,7 @@ public class IA {
                 }
 
                 visite[nx][ny] = true;
-                // on garde en mémoire la première direction utilisée pour retrouver le chemin
+                // on mémorise le premier pas depuis le départ, c'est ça qui nous intéresse au final
                 premierPas[nx][ny] = (x == startX && y == startY) ? dir : premierPas[x][y];
 
                 if (nx == targetX && ny == targetY) {
@@ -107,12 +107,12 @@ public class IA {
             return false;
         }
 
-        // pour monter il faut être sur une échelle ou en avoir une au dessus
+        // on peut monter seulement si on est sur une échelle ou que la case du dessus en est une
         if (dir == Direction.HAUT) {
             return caseActuelle == Case.ECHELLE || caseCible == Case.ECHELLE;
         }
 
-        // pour aller à gauche ou droite il faut être posé sur quelque chose
+        // pour se déplacer horizontalement il faut avoir un sol sous les pieds
         if (dir == Direction.GAUCHE || dir == Direction.DROITE) {
             return estSupporte(x, y);
         }
@@ -127,7 +127,7 @@ public class IA {
         }
         int yBas = y + 1;
         if (!plateau.estdansLePlateau(x, yBas)) {
-            return true; // on est au bord bas du plateau donc forcément posé
+            return true; // bord inférieur du plateau, on considère que c'est solide
         }
         Case caseBas = plateau.getCase(x, yBas);
         return caseBas == Case.MUR || caseBas == Case.ECHELLE || caseBas == Case.TROU;

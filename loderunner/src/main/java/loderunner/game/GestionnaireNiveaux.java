@@ -12,18 +12,18 @@ import loderunner.utils.LevelLoader;
 
 public class GestionnaireNiveaux {
 
-    private static final String CHEMIN_NIVEAUX   = "loderunner/src/main/ressources/level/level";
-    private static final long   DELAI_TRANSITION = 2000; // on attend 2 secondes avant de passer au niveau suivant
+    private static final String CHEMIN_NIVEAUX = "loderunner/src/main/ressources/level/level";
+    private static final long DELAI_TRANSITION = 2000; // 2 secondes d'attente entre les niveaux pour que le joueur voie l'écran de victoire
 
-    private int          nbNiveaux     = 2;
-    private int          niveauCourant;
-    private JFrame       frame;
+    private int nbNiveaux = 2;
+    private int niveauCourant;
+    private JFrame frame;
     private InputHandler inputHandler;
-    private Moteur       moteurCourant;
-    private GamePanel    panel;
+    private Moteur moteurCourant;
+    private GamePanel panel;
 
     public GestionnaireNiveaux(JFrame frame, InputHandler ih) {
-        this.frame        = frame;
+        this.frame = frame;
         this.inputHandler = ih;
     }
 
@@ -37,12 +37,12 @@ public class GestionnaireNiveaux {
             niveauCourant++;
             chargerNiveau(niveauCourant);
         } else {
-            // si c'est le dernier niveau on en génère un nouveau et on repart
+            // dernier niveau atteint, on recharge le même (qui se regénère à chaque fois dans chargerNiveau)
             chargerNiveau(niveauCourant);
         }
     }
 
-    // cette méthode génère une map aléatoire et l'écrit dans level3.txt
+    // génère un niveau aléatoire et l'écrit dans level3.txt (utilisé à partir du 3ème niveau)
     public void genererNiveau() {
         final int LARGEUR = 20;
         final int HAUTEUR = 15;
@@ -58,14 +58,14 @@ public class GestionnaireNiveaux {
             grille[y][LARGEUR - 1] = '#';
         }
 
-        // nombre d'étages variable : 2, 3 ou 4
+        // on choisit un nombre d'étages entre 2 et 4 au hasard
         int nbEtages = 2 + alea(3);
         int espacement = (HAUTEUR - 2) / (nbEtages + 1);
         int[] rowsMurs = new int[nbEtages];
         for (int i = 0; i < nbEtages; i++)
             rowsMurs[i] = Math.max(2, Math.min(HAUTEUR - 3, 1 + espacement * (i + 1) + alea(3) - 1));
 
-        // murs horizontaux : parfois complets, parfois avec un gap au milieu
+        // pour chaque étage on place un mur horizontal, parfois avec un trou au milieu pour passer
         for (int rowMur : rowsMurs) {
             if (alea(3) > 0) {
                 // mur complet
@@ -80,33 +80,35 @@ public class GestionnaireNiveaux {
             }
         }
 
-        // une échelle principale pleine hauteur pour que la sortie soit accessible
+        // une grande échelle qui traverse tout le niveau pour qu'on puisse toujours atteindre la sortie
         int xEchPrincipale = 2 + alea(LARGEUR - 4);
         grille[0][xEchPrincipale] = 'S';
         for (int y = 1; y < HAUTEUR - 1; y++)
             grille[y][xEchPrincipale] = 'H';
 
-        // échelles secondaires entre étages adjacents seulement (pas pleine hauteur)
+        // quelques échelles courtes entre étages pour varier les chemins
         int nbEchSec = 1 + alea(3);
         for (int e = 0; e < nbEchSec; e++) {
             int xE = 1 + alea(LARGEUR - 2);
             int etage = alea(rowsMurs.length);
             int yHaut = (etage == 0) ? 1 : rowsMurs[etage - 1] + 1;
-            int yBas  = rowsMurs[etage];
+            int yBas = rowsMurs[etage];
             for (int y = yHaut; y <= yBas; y++)
                 grille[y][xE] = 'H';
         }
 
-        // passerelles en segments de longueur variable dans chaque section
+        // des passerelles de longueur variable pour avoir des plateformes dans chaque section
         int[] limites = new int[nbEtages + 2];
         limites[0] = 1;
-        for (int i = 0; i < nbEtages; i++) limites[i + 1] = rowsMurs[i];
+        for (int i = 0; i < nbEtages; i++)
+            limites[i + 1] = rowsMurs[i];
         limites[nbEtages + 1] = HAUTEUR - 2;
 
         for (int s = 0; s < limites.length - 1; s++) {
             int debut = limites[s];
-            int fin   = limites[s + 1];
-            if (fin - debut < 2) continue;
+            int fin = limites[s + 1];
+            if (fin - debut < 2)
+                continue;
             int nbPass = alea(3);
             for (int p = 0; p < nbPass; p++) {
                 int rowPass = debut + 1 + alea(fin - debut - 1);
@@ -125,7 +127,7 @@ public class GestionnaireNiveaux {
             }
         }
 
-        // lingots sur les cases vides qui ont quelque chose en dessous
+        // on place les lingots sur des cases vides qui ont un sol en dessous, sinon ils flotteraient dans le vide
         int nbLingots = 8 + alea(5);
         int tentativesL = nbLingots * 10;
         while (nbLingots > 0 && tentativesL-- > 0) {
@@ -139,7 +141,7 @@ public class GestionnaireNiveaux {
 
         grille[HAUTEUR - 2][1 + alea(Math.max(2, xEchPrincipale - 1))] = 'P';
 
-        // entre 1 et 3 gardes placés sur des cases soutenues
+        // on place entre 1 et 3 gardes sur des cases qui ont un sol
         int nbGardes = 1 + alea(3);
         for (int g = 0; g < nbGardes; g++) {
             int tentatives = 20;
@@ -169,9 +171,10 @@ public class GestionnaireNiveaux {
             nbNiveaux = 3;
     }
 
-    // vérifie qu'une case a quelque chose de solide en dessous (pour pas mettre un lingot dans le vide)
+    // vérifie qu'il y a un sol sous la case — pour éviter de placer des trucs dans le vide
     private boolean estSoutenu(char[][] grille, int x, int y, int hauteur) {
-        if (y + 1 >= hauteur) return true;
+        if (y + 1 >= hauteur)
+            return true;
         char caseBas = grille[y + 1][x];
         return caseBas == '#' || caseBas == '-' || caseBas == 'H';
     }
@@ -181,13 +184,14 @@ public class GestionnaireNiveaux {
     }
 
     private void chargerNiveau(int num) {
-        if (num == nbNiveaux) genererNiveau();
+        if (num == nbNiveaux)
+            genererNiveau();
 
         if (moteurCourant != null) {
             moteurCourant.stop();
         }
 
-        String  chemin  = CHEMIN_NIVEAUX + num + ".txt";
+        String chemin = CHEMIN_NIVEAUX + num + ".txt";
         Plateau plateau = LevelLoader.loadMap(chemin);
 
         if (panel == null) {
@@ -210,14 +214,15 @@ public class GestionnaireNiveaux {
         threadMoteur.start();
 
         final Plateau plateauSuivi = plateau;
-        final int     niveauLance  = num;
+        final int niveauLance = num;
         Thread moniteur = new Thread(() -> {
             try {
                 threadMoteur.join();
             } catch (InterruptedException e) {
                 return;
             }
-            if (niveauLance == niveauCourant && plateauSuivi.isPartieGagnee()) {
+            // on vérifie que c'est bien le niveau actuel qui vient de se terminer avant de passer au suivant
+        if (niveauLance == niveauCourant && plateauSuivi.isPartieGagnee()) {
                 try {
                     Thread.sleep(DELAI_TRANSITION);
                 } catch (InterruptedException ex) {

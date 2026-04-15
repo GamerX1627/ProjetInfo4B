@@ -1,15 +1,16 @@
 package loderunner.model;
-//Classe qui représente le plateau de jeu, et qui est composé de cases.
+// le plateau contient toutes les cases du niveau ainsi que les joueurs et les gardes
 
 import java.util.ArrayList;
 
 public class Plateau {
-    private Case[][] cases; // Matrice représentant les cases du plateau
-    private ArrayList<Joueur> joueurs; // Liste des joueurs présents sur le plateau
-    private ArrayList<Garde> gardes; // Liste des gardes présents sur le plateau
-    private int largeur; // Largeur du plateau
-    private int hauteur; // Hauteur du plateau
-    private boolean partieGagnee = false;
+    private Case[][] cases;           // grille 2D des cases, indexée par [x][y]
+    private ArrayList<Joueur> joueurs; // tous les joueurs sur le plateau
+    private ArrayList<Garde> gardes;   // tous les gardes sur le plateau
+    private int largeur;               // nombre de colonnes
+    private int hauteur;               // nombre de lignes
+    private boolean partieGagnee  = false;
+    private boolean partiePerdue  = false;
 
     public Plateau(int largeur, int hauteur) {
         this.largeur = largeur;
@@ -45,7 +46,7 @@ public class Plateau {
         Case type = getCase(x, y);
         return type != Case.MUR;
     }
-    // ajouter des éléments au plateau
+    // méthodes pour ajouter des entités au plateau (appelées par le LevelLoader)
 
     public void ajouterJoueur(Joueur joueur) {
         this.joueurs.add(joueur);
@@ -55,7 +56,7 @@ public class Plateau {
         this.gardes.add(garde);
     }
 
-    // récuperer les éléments du plateau
+    // getters pour accéder aux entités depuis les autres classes
     public ArrayList<Joueur> getJoueurs() {
         return joueurs;
     }
@@ -83,7 +84,7 @@ public class Plateau {
         return null;
     }
 
-    // modifier le plateau
+    // remet toutes les cases à VIDE (utilisé avant de recharger un niveau)
     public void initPlateau() {
         for (int x = 0; x < largeur; x++) {
             for (int y = 0; y < hauteur; y++) {
@@ -118,6 +119,14 @@ public class Plateau {
         this.partieGagnee = partieGagnee;
     }
 
+    public boolean isPartiePerdue() {
+        return partiePerdue;
+    }
+
+    public void setPartiePerdue(boolean partiePerdue) {
+        this.partiePerdue = partiePerdue;
+    }
+
     public boolean tousLesLingotsRecoltes(){
         for (int x = 0; x < largeur; x++) {
             for (int y = 0; y < hauteur; y++) {
@@ -128,10 +137,7 @@ public class Plateau {
         }
         return true;
     }
-    // Ici, on vérifie si une position est libre, c'est à dire qu'elle n'est pas un
-    // mur et qu'elle n'est pas occupée par un joueur ou un garde. à noter que on
-    // pourra plus tard ajouter d'autres éléments comme les paquets et les lingots,
-    // mais pour l'instant on se concentre sur les éléments de base.
+    // vérifie qu'une case est libre : pas un mur et pas déjà occupée par une entité
     public boolean estLibre(int x, int y) {
         if (!estPositionValide(x, y)) {
             return false;
@@ -150,6 +156,7 @@ public class Plateau {
                 return false;
             }
         }
-        return true; 
+        return true;
+
     }
 }

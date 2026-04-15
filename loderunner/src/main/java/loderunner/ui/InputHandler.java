@@ -12,7 +12,7 @@ public class InputHandler implements KeyListener {
         return directionCourante;
     }
 
-    // Retourne true si le joueur veut creuser, et consomme l'action
+    // on retourne true une seule fois par appui sur espace, pour éviter de creuser en continu
     public boolean consommerCreuser() {
         if (creuser) {
             creuser = false;

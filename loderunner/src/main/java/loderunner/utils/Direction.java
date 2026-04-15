@@ -1,5 +1,5 @@
 package loderunner.utils;
-// pour indiquer dans quelle direction le joueur doit se déplacer après que l'utilisateur ait fait un clic
+// les 4 directions possibles + AUCUNE quand le joueur ne bouge pas
 public enum Direction {
     HAUT, BAS, GAUCHE, DROITE, AUCUNE;
 }

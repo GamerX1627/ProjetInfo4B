@@ -1,14 +1,15 @@
 package loderunner.model;
 
-// Classe qui représente le joueur dans le jeu, avec ses caractéristiques et ses actions possibles.
+// le joueur, c'est le personnage principal qu'on contrôle
+// il hérite d'Entite pour avoir les déplacements de base
 public class Joueur extends Entite {
-    private int score; // Score du joueur
-    private int vies; // Nombre de vies restantes du joueur
+    private int score; // points accumulés pendant la partie
+    private int vies;  // nombre de vies restantes
 
     public Joueur(int x, int y, Plateau plateau) {
         super(x, y, plateau);
         this.score = 0;
-        this.vies = 5; // car le joueur commence avec 5 vies
+        this.vies = 5; // on commence avec 5 vies comme dans le jeu original
     }
 
     public int getScore() {
@@ -32,21 +33,20 @@ public class Joueur extends Entite {
     }
 
     public void prendrePaquet() {
-        this.ajouterScore(10); // Chaque paquet rapporte 10 points
+        this.ajouterScore(10); // 10 points par paquet
     }
 
     public void prendreLingot() {
-        this.ajouterScore(50); // Chaque lingot rapporte 50 points
+        this.ajouterScore(50); // 50 points par lingot
     }
 
     public void entrerSortie() {
-        this.ajouterScore(100); // Finir la partie rapporte 100 points
+        this.ajouterScore(100); // bonus de fin de niveau
     }
 
-    // cette fonction est utilisée lorsque le joueur perd toutes ses vies ou
-    // lorsqu'il veut recommencer une partie
+    // on remet le joueur à sa position de départ (quand il meurt ou que le niveau repart)
     @Override
     public void reset() {
-        super.reset(); // Réinitialiser la position du joueur
+        super.reset();
     }
 }

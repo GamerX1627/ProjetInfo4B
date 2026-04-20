@@ -180,13 +180,16 @@ public class Client implements Runnable {
             else nbGardes++;
         }
 
-        // si le serveur a plus d'entités que nous (ex: nouveau joueur connecté), on en crée localement
-        while (plateauLocal.getJoueurs().size() < nbJoueurs) {
+        // on synchronise le nombre d'entités avec le serveur (ajout ET suppression)
+        while (plateauLocal.getJoueurs().size() < nbJoueurs)
             plateauLocal.ajouterJoueur(new Joueur(0, 0, plateauLocal));
-        }
-        while (plateauLocal.getGardes().size() < nbGardes) {
+        while (plateauLocal.getJoueurs().size() > nbJoueurs)
+            plateauLocal.getJoueurs().remove(plateauLocal.getJoueurs().size() - 1);
+
+        while (plateauLocal.getGardes().size() < nbGardes)
             plateauLocal.ajouterGarde(new Garde(0, 0, plateauLocal));
-        }
+        while (plateauLocal.getGardes().size() > nbGardes)
+            plateauLocal.getGardes().remove(plateauLocal.getGardes().size() - 1);
 
         // mise à jour des positions et directions de toutes les entités
         int iJ = 0;

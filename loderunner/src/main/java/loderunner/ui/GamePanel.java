@@ -220,18 +220,28 @@ public class GamePanel extends JPanel {
     }
 
     private void dessinerInterface(Graphics g) {
-        if (plateau.getJoueurs().isEmpty()) return;
-
-        // on affiche le score et les vies du joueur qu'on contrôle
-        int idxLocal = Math.min(indexJoueurLocal, plateau.getJoueurs().size() - 1);
-        Joueur joueur = plateau.getJoueurs().get(idxLocal);
-
         int largeurPx = plateau.getLargeur() * TILE_SIZE;
         int hauteurPx = plateau.getHauteur() * TILE_SIZE;
 
         // bandeau semi-transparent en haut
         g.setColor(new Color(0, 0, 0, 150));
         g.fillRect(0, 0, largeurPx, TILE_SIZE);
+
+        // si on joue un garde : bandeau "MODE COMBAT" + écrans de fin inversés
+        // (le garde gagne quand les joueurs meurent, il perd quand ils s'échappent)
+        if (indexGardeLocal >= 0) {
+            g.setColor(new Color(255, 80, 80));
+            g.setFont(new Font("Arial", Font.BOLD, 18));
+            g.drawString("MODE COMBAT", 8, 22);
+            dessinerEcransFinPartieGarde(g, largeurPx, hauteurPx);
+            return;
+        }
+
+        if (plateau.getJoueurs().isEmpty()) return;
+
+        // on affiche le score et les vies du joueur qu'on contrôle
+        int idxLocal = Math.min(indexJoueurLocal, plateau.getJoueurs().size() - 1);
+        Joueur joueur = plateau.getJoueurs().get(idxLocal);
 
         // score à gauche
         g.setColor(Color.WHITE);
@@ -251,46 +261,47 @@ public class GamePanel extends JPanel {
             dessinerScoreboard(g, largeurPx, hauteurPx);
         }
 
-        // écran victoire
+        dessinerEcransFinPartie(g, joueur, largeurPx, hauteurPx);
+    }
+
+    // version pour le garde : logique inversée — il gagne quand les joueurs meurent
+    private void dessinerEcransFinPartieGarde(Graphics g, int largeurPx, int hauteurPx) {
+        if (plateau.isPartiePerdue()) {
+            afficherOverlay(g, "YOU WIN !", Color.YELLOW, largeurPx, hauteurPx);
+        } else if (plateau.isPartieGagnee()) {
+            afficherOverlay(g, "GAME OVER", Color.RED, largeurPx, hauteurPx);
+        }
+    }
+
+    private void afficherOverlay(Graphics g, String texte, Color couleur, int largeurPx, int hauteurPx) {
+        g.setColor(new Color(0, 0, 0, 170));
+        g.fillRect(0, 0, largeurPx, hauteurPx);
+        g.setColor(couleur);
+        g.setFont(new Font("Arial", Font.BOLD, 48));
+        FontMetrics fm = g.getFontMetrics();
+        g.drawString(texte, (largeurPx - fm.stringWidth(texte)) / 2, hauteurPx / 2 - 10);
+    }
+
+    // affiche l'écran de victoire ou de game over si la partie est terminée
+    // joueur peut être null (cas du garde), dans ce cas on n'affiche pas de score final
+    private void dessinerEcransFinPartie(Graphics g, Joueur joueur, int largeurPx, int hauteurPx) {
         if (plateau.isPartieGagnee()) {
-            g.setColor(new Color(0, 0, 0, 170));
-            g.fillRect(0, 0, largeurPx, hauteurPx);
-
-            g.setColor(Color.YELLOW);
-            g.setFont(new Font("Arial", Font.BOLD, 48));
-            String texte = "YOU WIN !";
-            FontMetrics fm = g.getFontMetrics();
-            int x = (largeurPx - fm.stringWidth(texte)) / 2;
-            int y = hauteurPx / 2 - 10;
-            g.drawString(texte, x, y);
-
-            g.setColor(Color.WHITE);
-            g.setFont(new Font("Arial", Font.PLAIN, 20));
-            String score = "Score final : " + joueur.getScore();
-            fm = g.getFontMetrics();
-            g.drawString(score, (largeurPx - fm.stringWidth(score)) / 2, y + 40);
+            afficherOverlay(g, "YOU WIN !", Color.YELLOW, largeurPx, hauteurPx);
+            if (joueur != null) dessinerScoreFinal(g, joueur, largeurPx, hauteurPx);
             return;
         }
-
-        // écran game over : soit le joueur local est mort, soit le serveur a signalé que tout le monde est mort
-        if (joueur.estMort() || plateau.isPartiePerdue()) {
-            g.setColor(new Color(0, 0, 0, 170));
-            g.fillRect(0, 0, largeurPx, hauteurPx);
-
-            g.setColor(Color.RED);
-            g.setFont(new Font("Arial", Font.BOLD, 48));
-            String texte = "GAME OVER";
-            FontMetrics fm = g.getFontMetrics();
-            int x = (largeurPx - fm.stringWidth(texte)) / 2;
-            int y = hauteurPx / 2 - 10;
-            g.drawString(texte, x, y);
-
-            g.setColor(Color.WHITE);
-            g.setFont(new Font("Arial", Font.PLAIN, 20));
-            String score = "Score final : " + joueur.getScore();
-            fm = g.getFontMetrics();
-            g.drawString(score, (largeurPx - fm.stringWidth(score)) / 2, y + 40);
+        if (plateau.isPartiePerdue() || (joueur != null && joueur.estMort())) {
+            afficherOverlay(g, "GAME OVER", Color.RED, largeurPx, hauteurPx);
+            if (joueur != null) dessinerScoreFinal(g, joueur, largeurPx, hauteurPx);
         }
+    }
+
+    private void dessinerScoreFinal(Graphics g, Joueur joueur, int largeurPx, int hauteurPx) {
+        g.setColor(Color.WHITE);
+        g.setFont(new Font("Arial", Font.PLAIN, 20));
+        String score = "Score final : " + joueur.getScore();
+        FontMetrics fm = g.getFontMetrics();
+        g.drawString(score, (largeurPx - fm.stringWidth(score)) / 2, hauteurPx / 2 + 30);
     }
 
     // scoreboard en bas à droite, visible seulement quand y'a plusieurs joueurs

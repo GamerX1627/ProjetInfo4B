@@ -3,6 +3,7 @@ package loderunner.ui;
 import java.awt.*;
 import java.awt.event.*;
 import javax.swing.*;
+import loderunner.Main;
 import loderunner.game.GestionnaireNiveaux;
 import loderunner.network.Client;
 import loderunner.network.MessageProtocol;
@@ -138,7 +139,7 @@ public class MainWindow extends JFrame {
         portLbl.setForeground(COULEUR_TEXTE);
         gbc.gridy = 1; panel.add(portLbl, gbc);
 
-        JLabel ipLbl = new JLabel("Ton IP locale : " + obtenirIpLocale(), SwingConstants.CENTER);
+        JLabel ipLbl = new JLabel("IP du serveur : " + Main.IP_SERVEUR, SwingConstants.CENTER);
         ipLbl.setFont(new Font("Arial", Font.BOLD, 15));
         ipLbl.setForeground(new Color(100, 220, 100));
         gbc.gridy = 2; panel.add(ipLbl, gbc);
@@ -190,8 +191,7 @@ public class MainWindow extends JFrame {
         String ip = JOptionPane.showInputDialog(
                 this,
                 "Adresse IP du serveur :",
-                "Rejoindre une partie",
-                JOptionPane.QUESTION_MESSAGE);
+                Main.IP_SERVEUR);
 
         if (ip == null || ip.isBlank()) return;
 
@@ -224,18 +224,6 @@ public class MainWindow extends JFrame {
         dispose();
         Client client = new Client(ip.trim(), MessageProtocol.PORT_DEFAUT, role, equipe);
         new Thread(() -> client.connecter(), "Thread-Client").start();
-    }
-
-    // ------------------------------------------------------------------ //
-    //  Utilitaires                                                        //
-    // ------------------------------------------------------------------ //
-
-    private String obtenirIpLocale() {
-        try {
-            return java.net.InetAddress.getLocalHost().getHostAddress();
-        } catch (java.net.UnknownHostException ex) {
-            return "introuvable";
-        }
     }
 
     // ------------------------------------------------------------------ //

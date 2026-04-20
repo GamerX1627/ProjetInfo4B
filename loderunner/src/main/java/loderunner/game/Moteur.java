@@ -59,8 +59,8 @@ public class Moteur implements Runnable {
                             j.ajouterScore(10);
                         }
 
-                        // on ne peut sortir que si tous les lingots du niveau sont ramassés
-                        if (plateau.getCase(j.getX(), j.getY()) == Case.SORTIE) {
+                        if (plateau.getCase(j.getX(), j.getY()) == Case.SORTIE
+                                && plateau.tousLesLingotsRecoltes()) {
                             j.ajouterScore(100);
                             plateau.setPartieGagnee(true);
                             stop();

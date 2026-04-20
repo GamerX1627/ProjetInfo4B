@@ -225,7 +225,7 @@ public class Serveur implements Runnable {
                         plateau.setCase(j.getX(), j.getY(), Case.VIDE);
                         j.ajouterScore(10);
                     }
-                    if (caseActuelle == Case.SORTIE) {
+                    if (caseActuelle == Case.SORTIE && plateau.tousLesLingotsRecoltes()) {
                         j.ajouterScore(100);
                         plateau.setPartieGagnee(true);
                         encours = false;

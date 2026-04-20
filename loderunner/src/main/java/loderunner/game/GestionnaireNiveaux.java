@@ -12,7 +12,7 @@ import loderunner.utils.LevelLoader;
 
 public class GestionnaireNiveaux {
 
-    private static final String CHEMIN_NIVEAUX = "loderunner/src/main/ressources/level/level";
+    private static final String CHEMIN_NIVEAUX = "src/main/ressources/level/level";
     private static final long DELAI_TRANSITION = 2000; // 2 secondes d'attente entre les niveaux pour que le joueur voie l'écran de victoire
 
     private int nbNiveaux = 2;

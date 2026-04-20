@@ -19,7 +19,7 @@ public class ImageLoader {
 
         // sinon on la charge depuis le dossier ressources et on la met en cache
         try {
-            BufferedImage img = ImageIO.read(new File("loderunner/src/main/ressources/images/" + nomFichier));
+            BufferedImage img = ImageIO.read(new File("src/main/ressources/images/" + nomFichier));
             cacheImages.put(nomFichier, img);
             return img;
         } catch (IOException e) {

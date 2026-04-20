@@ -28,8 +28,8 @@ public class Serveur implements Runnable {
     private static final long   DUREE_FRAME            = 50L; // 20 FPS
     private static final int    DELAI_MOUVEMENT        = 3;
     private static final int    DELAI_MOUVEMENT_GARDES = 6;
-    private static final String CHEMIN_NIVEAUX         = "loderunner/src/main/ressources/level/level";
-    private static final String FICHIER_LEADERBOARD    = "loderunner/src/main/ressources/leaderboard.txt";
+    private static final String CHEMIN_NIVEAUX         = "src/main/ressources/level/level";
+    private static final String FICHIER_LEADERBOARD    = "src/main/ressources/leaderboard.txt";
     private static final long   DELAI_TRANSITION       = 2000L; // pause entre niveaux
 
     private int niveauCourant = 1;
